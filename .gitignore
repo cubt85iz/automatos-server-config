@@ -2,4 +2,5 @@
 ./units
 
 *.bu
+*.ign
 vars.yml
