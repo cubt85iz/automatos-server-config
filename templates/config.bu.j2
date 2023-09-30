@@ -1,0 +1,31 @@
+variant: fcos
+version: 1.5.0
+
+ignition:
+  config:
+    merge:
+      - local: services/homer.bu
+      - local: services/jellyfin.bu
+
+passwd:
+  users:
+  {% for user in {{ users }} %}
+    - name: {{ user.name }}
+      password_hash: {{ user.password }}
+      {% if user.groups is defined %}
+      groups:
+      {% for group in user.groups %}
+        - {{ group }}
+      {% endfor %}
+      {% endif %}
+      {% if user.pubkeys is defined %}
+      ssh_authorized_keys:
+      {% for key in user.pubkeys %}
+        - {{ key }}
+      {% endfor %}
+      {% endif %}
+      {% if user.id is defined %}
+      uid: {{ user.id }}
+      {% endif %}
+  {% endfor %}
+

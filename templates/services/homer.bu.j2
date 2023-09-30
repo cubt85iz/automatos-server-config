@@ -1,0 +1,12 @@
+---
+variant: fcos
+version: 1.5.0
+passwd:
+  users:
+    - name: homer
+      system: true
+systemd:
+  units:
+    - name: homer.service
+      enabled: false
+      contents_local: ../units/services/homer.service
