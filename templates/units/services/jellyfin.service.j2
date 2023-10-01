@@ -17,14 +17,14 @@ ExecStart=/bin/podman run \
     --name=jellyfin \
     -e JELLYFIN_FFmpeg__analyzeduration: '1G' \
     -e JELLYFIN_FFmpeg__probesize: '1G' \
-    {% if jellyfin_ports is defined %}
-    {% for port in jellyfin_ports %}
+    {% if ports_jellyfin is defined %}
+    {% for port in ports_jellyfin %}
     -p "{{ port }}" \
     {% endfor %}
     {% endif %}
-    {% if jellyfin_volumes is defined %}
-    {% for volume in jellyfin_volumes %}
-    -v "{{ volumes }}" \
+    {% if volumes_jellyfin is defined %}
+    {% for volume in volumes_jellyfin %}
+    -v "{{ volume }}" \
     {% endfor %}
     {% endif %}
     jellyfin/jellyfin:latest

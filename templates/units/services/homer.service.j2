@@ -16,13 +16,13 @@ ExecStart=/bin/podman run \
     --read-only \
     --name=homer \
     -e INIT_ASSETS: '1' \
-    {% if homer_ports is defined %}
-    {% for port in homer_ports %}
+    {% if ports_homer is defined %}
+    {% for port in ports_homer %}
     -p "{{ port }}" \
     {% endfor %}
     {% endif %}
-    {% if homer_volumes is defined %}
-    {% for volume in homer_volumes %}
+    {% if volumes_homer is defined %}
+    {% for volume in volumes_homer %}
     -v "{{ volume }}" \
     {% endfor %}
     {% endif %}

@@ -1,6 +1,6 @@
-./services
-./units
+./services/**
+./units/**
 
 *.bu
 *.ign
-vars.yml
+secrets.yml
