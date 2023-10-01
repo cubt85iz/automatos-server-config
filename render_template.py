@@ -33,8 +33,9 @@ j2_rendered_template = j2_template.render(secrets)
 # Write rendered template to specified file.
 if (output != None):
   # Ensure path to output file exists.
-  if not os.path.exists(os.path.dirname(output)):
-    os.makedirs(os.path.dirname(output))
+  output_path=os.path.dirname(output)
+  if output_path and not os.path.exists(output_path):
+    os.makedirs(output_path)
 
   with open(output, '+w') as file:
     file.write(j2_rendered_template)

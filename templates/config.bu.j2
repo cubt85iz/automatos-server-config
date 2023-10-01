@@ -9,7 +9,7 @@ ignition:
 
 passwd:
   users:
-  {% for user in {{ users }} %}
+  {% for user in users %}
     - name: {{ user.name }}
       password_hash: {{ user.password }}
       {% if user.groups is defined %}
