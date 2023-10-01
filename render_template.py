@@ -24,7 +24,7 @@ output = os.path.join(os.path.dirname(template), os.path.basename(template)[:-3]
 secrets = yaml.safe_load(open(secrets, 'r'))
 
 # Open template
-j2_environment = Environment(loader=FileSystemLoader(templates_path))
+j2_environment = Environment(loader=FileSystemLoader(templates_path), trim_blocks=True, lstrip_blocks=True)
 j2_template = j2_environment.get_template(template)
 
 # Render template
