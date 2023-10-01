@@ -2,5 +2,8 @@ services/**
 units/**
 
 *.bu
+!services/homer.bu
+!services/jellyfin.bu
+
 *.ign
 secrets.yml
