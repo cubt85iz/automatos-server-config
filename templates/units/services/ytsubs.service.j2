@@ -1,0 +1,32 @@
+[Unit]
+Description=Container service for YTSubs
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-ytsubs.pid %t/container-ytsubs.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-ytsubs.pid \
+    --cidfile %t/container-ytsubs.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=ytsubs \
+    {% if volumes_ytsubs is defined %}
+    {% for volume in volumes_ytsubs %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    registry.gitlab.com/cubt85iz/ytsubs:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-ytsubs.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-ytsubs.ctr-id
+PIDFile=%t/container-ytsubs.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

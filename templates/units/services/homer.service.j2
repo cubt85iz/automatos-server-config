@@ -1,11 +1,13 @@
 [Unit]
 Description=Container service for Homer
 Wants=network.target
-After=network-online.target zfs.target
+#After=network-online.target zfs.target
+After=network-online.target
 
 [Service]
 Restart=on-failure
 TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
 ExecStartPre=/bin/rm -f %t/container-homer.pid %t/container-homer.ctr-id
 ExecStart=/bin/podman run \
     --conmon-pidfile %t/container-homer.pid \
@@ -15,7 +17,7 @@ ExecStart=/bin/podman run \
     --rm \
     --read-only \
     --name=homer \
-    -e INIT_ASSETS: '1' \
+    -e INIT_ASSETS='1' \
     {% if ports_homer is defined %}
     {% for port in ports_homer %}
     -p "{{ port }}" \
@@ -26,12 +28,11 @@ ExecStart=/bin/podman run \
     -v "{{ volume }}" \
     {% endfor %}
     {% endif %}
-    b4bz/homer:latest
-ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-homer.ctr-id -t 10
+    docker.io/b4bz/homer:latest
+ExecStop=/usr/bin/podman stop --ignore --time 10 homer
 ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-homer.ctr-id
 PIDFile=%t/container-homer.pid
-User=homer
 Type=forking
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

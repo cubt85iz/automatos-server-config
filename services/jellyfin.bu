@@ -1,12 +1,49 @@
 ---
+# User services must be manually configured: https://docs.fedoraproject.org/en-US/fedora-coreos/tutorial-user-systemd-unit-on-boot/
 variant: fcos
 version: 1.5.0
-passwd:
-  users:
-    - name: jellyfin
-      system: true
-systemd:
-  units:
-    - name: jellyfin.service
-      enabled: false
-      contents_local: ../units/services/jellyfin.service
+storage:
+  directories:
+    - path: /var/home/core/.config
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /var/home/core/.config/systemd
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /var/home/core/.config/systemd/user
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+    - path: /var/home/core/.config/systemd/user/default.target.wants
+      mode: 0755
+      user:
+        name: core
+      group:
+        name: core
+  files:
+    - path: /var/lib/systemd/linger/core
+      mode: 0644
+    - path: /var/home/core/.config/systemd/user/jellyfin.service
+      mode: 0644
+      contents:
+        local: units/services/jellyfin.service
+      user:
+        name: core
+      group:
+        name: core
+  links:
+    - path: /var/home/core/.config/systemd/user/default.target.wants/jellyfin.service
+      user:
+        name: core
+      group:
+        name: core
+      target: /var/home/core/.config/systemd/user/jellyfin.service
+      hard: false

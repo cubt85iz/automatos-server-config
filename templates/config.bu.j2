@@ -4,8 +4,19 @@ version: 1.5.0
 ignition:
   config:
     merge:
-      - local: services/homer.bu
-      - local: services/jellyfin.bu
+      - local: services/audiobookshelf.ign
+      - local: services/calibre-web.ign
+      - local: services/gotify.ign
+      - local: services/homer.ign
+      - local: services/jellyfin.ign
+      # - local: services/mealie.ign
+      - local: services/mkdocs.ign
+      - local: services/plex.ign
+      - local: services/plexmetamanager.ign
+      - local: services/syncthing.ign
+      - local: services/unifi.ign
+      - local: services/ytsubs.ign
+      - local: services/zap2xml.ign
 
 passwd:
   users:
@@ -29,3 +40,25 @@ passwd:
       {% endif %}
   {% endfor %}
 
+storage:
+  directories:
+    - path: /var/tank
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/vol
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+  files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: {{ hostname }}.{{ domain }}
+  links:
+    - path: /etc/localtime
+      target: ../usr/share/zoneinfo/America/New_York

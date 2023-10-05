@@ -1,0 +1,33 @@
+[Unit]
+Description=Container service for Plex Meta Manager
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-plexmetamanager.pid %t/container-plexmetamanager.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-plexmetamanager.pid \
+    --cidfile %t/container-plexmetamanager.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=plexmetamanager \
+    -e PMM_TIME='08:00,10:00,12:00,14:00,16:00,18:00,20:00,22:00' \
+    {% if volumes_plexmetamanager is defined %}
+    {% for volume in volumes_plexmetamanager %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    docker.io/meisnate12/plex-meta-manager:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-plexmetamanager.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-plexmetamanager.ctr-id
+PIDFile=%t/container-plexmetamanager.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

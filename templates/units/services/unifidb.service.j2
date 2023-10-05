@@ -1,0 +1,37 @@
+[Unit]
+Description=Container service for UniFi DB
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-unifidb.pid %t/container-unifidb.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-unifidb.pid \
+    --cidfile %t/container-unifidb.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=unifidb \
+    {% if env_unifidb is defined %}
+    {% for env in env_unifidb %}
+    -e {{ env }} \
+    {% endfor %}
+    {% endif %}
+    {% if volumes_unifidb is defined %}
+    {% for volume in volumes_unifidb %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    docker.io/mongo:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-unifidb.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-unifidb.ctr-id
+PIDFile=%t/container-unifidb.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

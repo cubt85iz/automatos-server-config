@@ -16,9 +16,21 @@ configure: clean
 
 # Transpiles butane configurations to create an ignition file
 build:
+  #!/usr/bin/env bash
   just install-deps
   test -f config.bu || just configure
-  butane -d . -o config.ign config.bu
+  
+  # Build dependent configurations
+  shopt -s globstar
+  for file in **/*.bu; do
+    if [ "$file" != "config.bu" ]; then
+      output_file="${file%.bu}.ign"
+      butane -p -d . -o "$output_file" "$file"
+    fi
+  done
+
+  # Build primary configuration
+  butane -p -d . -o config.ign config.bu
 
 # Hosts the ignition file for deployment
 serve:

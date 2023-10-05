@@ -1,0 +1,42 @@
+[Unit]
+Description=Container service for UniFi
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-unifi.pid %t/container-unifi.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-unifi.pid \
+    --cidfile %t/container-unifi.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=unifi \
+    {% if env_unifi is defined %}
+    {% for env in env_unifi %}
+    -e {{ env }} \
+    {% endfor %}
+    {% endif %}
+    {% if ports_unifi is defined %}
+    {% for port in ports_unifi %}
+    -p "{{ port }}" \
+    {% endfor %}
+    {% endif %}
+    {% if volumes_unifi is defined %}
+    {% for volume in volumes_unifi %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    docker.io/jacobalberty/unifi:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-unifi.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-unifi.ctr-id
+PIDFile=%t/container-unifi.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

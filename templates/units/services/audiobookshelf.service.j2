@@ -1,0 +1,39 @@
+[Unit]
+Description=Container service for Audiobookshelf
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-audiobookshelf.pid %t/container-audiobookshelf.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-audiobookshelf.pid \
+    --cidfile %t/container-audiobookshelf.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=audiobookshelf \
+    -e AUDIOBOOKSHELF_UID='1000' \
+    -e AUDIOBOOKSHELF_GID='1000' \
+    {% if ports_audiobookshelf is defined %}
+    {% for port in ports_audiobookshelf %}
+    -p "{{ port }}" \
+    {% endfor %}
+    {% endif %}
+    {% if volumes_audiobookshelf is defined %}
+    {% for volume in volumes_audiobookshelf %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    ghcr.io/advplyr/audiobookshelf:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-audiobookshelf.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-audiobookshelf.ctr-id
+PIDFile=%t/container-audiobookshelf.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

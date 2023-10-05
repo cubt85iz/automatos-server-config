@@ -1,0 +1,39 @@
+[Unit]
+Description=Container service for Syncthing
+Wants=network.target
+#After=network-online.target zfs.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
+ExecStartPre=/bin/rm -f %t/container-syncthing.pid %t/container-syncthing.ctr-id
+ExecStart=/bin/podman run \
+    --conmon-pidfile %t/container-syncthing.pid \
+    --cidfile %t/container-syncthing.ctr-id \
+    --cgroups=no-conmon -d --replace \
+    --pull=always \
+    --rm \
+    --read-only \
+    --name=syncthing \
+    -e PUID='1000' \
+    -e PGID='1000' \
+    {% if ports_syncthing is defined %}
+    {% for port in ports_syncthing %}
+    -p "{{ port }}" \
+    {% endfor %}
+    {% endif %}
+    {% if volumes_syncthing is defined %}
+    {% for volume in volumes_syncthing %}
+    -v "{{ volume }}" \
+    {% endfor %}
+    {% endif %}
+    docker.io/syncthing/syncthing:latest
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-syncthing.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-syncthing.ctr-id
+PIDFile=%t/container-syncthing.pid
+Type=forking
+
+[Install]
+WantedBy=default.target

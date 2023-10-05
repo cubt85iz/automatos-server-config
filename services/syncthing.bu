@@ -31,19 +31,19 @@ storage:
   files:
     - path: /var/lib/systemd/linger/core
       mode: 0644
-    - path: /var/home/core/.config/systemd/user/homer.service
+    - path: /var/home/core/.config/systemd/user/syncthing.service
       mode: 0644
       contents:
-        local: units/services/homer.service
+        local: units/services/syncthing.service
       user:
         name: core
       group:
         name: core
   links:
-    - path: /var/home/core/.config/systemd/user/default.target.wants/homer.service
+    - path: /var/home/core/.config/systemd/user/default.target.wants/syncthing.service
       user:
         name: core
       group:
         name: core
-      target: /var/home/core/.config/systemd/user/homer.service
+      target: /var/home/core/.config/systemd/user/syncthing.service
       hard: false

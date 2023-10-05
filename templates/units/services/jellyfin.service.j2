@@ -1,11 +1,13 @@
 [Unit]
 Description=Container service for Jellyfin
 Wants=network.target
-After=network-online.target zfs.target
+#After=network-online.target zfs.target
+After=network-online.target
 
 [Service]
 Restart=on-failure
 TimeoutStopSec=60
+ExecStartPre=/bin/sh -c 'until ping -c1 cloudflare.com; do sleep 1; done;'
 ExecStartPre=/bin/rm -f %t/container-jellyfin.pid %t/container-jellyfin.ctr-id
 ExecStart=/bin/podman run \
     --conmon-pidfile %t/container-jellyfin.pid \
@@ -15,8 +17,8 @@ ExecStart=/bin/podman run \
     --rm \
     --read-only \
     --name=jellyfin \
-    -e JELLYFIN_FFmpeg__analyzeduration: '1G' \
-    -e JELLYFIN_FFmpeg__probesize: '1G' \
+    -e JELLYFIN_FFmpeg__analyzeduration='1G' \
+    -e JELLYFIN_FFmpeg__probesize='1G' \
     {% if ports_jellyfin is defined %}
     {% for port in ports_jellyfin %}
     -p "{{ port }}" \
@@ -27,9 +29,11 @@ ExecStart=/bin/podman run \
     -v "{{ volume }}" \
     {% endfor %}
     {% endif %}
-    jellyfin/jellyfin:latest
+    docker.io/jellyfin/jellyfin:latest
 ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-jellyfin.ctr-id -t 10
 ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-jellyfin.ctr-id
 PIDFile=%t/container-jellyfin.pid
-User=jellyfin
 Type=forking
+
+[Install]
+WantedBy=default.target
