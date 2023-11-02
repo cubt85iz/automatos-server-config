@@ -1,23 +1,6 @@
 variant: fcos
 version: 1.5.0
 
-ignition:
-  config:
-    merge:
-      - local: services/audiobookshelf.ign
-      - local: services/calibre-web.ign
-      - local: services/gotify.ign
-      - local: services/homer.ign
-      - local: services/jellyfin.ign
-      # - local: services/mealie.ign
-      - local: services/mkdocs.ign
-      - local: services/plex.ign
-      - local: services/plexmetamanager.ign
-      - local: services/syncthing.ign
-      - local: services/unifi.ign
-      - local: services/ytsubs.ign
-      - local: services/zap2xml.ign
-
 passwd:
   users:
   {% for user in users %}
@@ -42,13 +25,31 @@ passwd:
 
 storage:
   directories:
-    - path: /var/tank
+    - path: /var/containers
       mode: 0755
       user:
         name: root
       group:
         name: root
-    - path: /var/vol
+    - path: /var/containers/volumes/embyserver/data
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/embyserver/movies
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/embyserver/tv
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root    
+    - path: /var/tank
       mode: 0755
       user:
         name: root
@@ -62,3 +63,6 @@ storage:
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
+  trees:
+    - local: dotenv/
+      path: /var/containers/dotenv

@@ -17,6 +17,14 @@ configure: clean
 # Transpiles butane configurations to create an ignition file
 build:
   #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Source bash aliases
+  if [ -f $HOME/.bash_aliases ]; then
+    . $HOME/.bash_aliases
+  fi
+
   just install-deps
   test -f config.bu || just configure
   
@@ -34,5 +42,14 @@ build:
 
 # Hosts the ignition file for deployment
 serve:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Source bash aliases
+  if [ -f $HOME/.bash_aliases ]; then
+    . $HOME/.bash_aliases
+  fi
+
   test -f config.ign || just build
   python3 -m http.server
