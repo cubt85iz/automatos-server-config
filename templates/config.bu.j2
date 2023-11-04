@@ -60,6 +60,10 @@ storage:
       mode: 0644
       contents:
         inline: {{ hostname }}.{{ domain }}
+    - path: /etc/modules-load.d/zfs.conf
+      mode: 0644
+      contents:
+        inline: zfs
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
