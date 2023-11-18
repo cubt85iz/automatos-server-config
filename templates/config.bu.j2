@@ -25,36 +25,14 @@ passwd:
 
 storage:
   directories:
-    - path: /var/containers
+    {% for mount in mounts %}
+    - path: {{ mount.path }}
       mode: 0755
       user:
         name: root
       group:
         name: root
-    - path: /var/containers/volumes/embyserver/data
-      mode: 0755
-      user:
-        name: root
-      group:
-        name: root
-    - path: /var/containers/volumes/embyserver/movies
-      mode: 0755
-      user:
-        name: root
-      group:
-        name: root
-    - path: /var/containers/volumes/embyserver/tv
-      mode: 0755
-      user:
-        name: root
-      group:
-        name: root    
-    - path: /var/tank
-      mode: 0755
-      user:
-        name: root
-      group:
-        name: root
+    {% endfor %}
   files:
     - path: /etc/hostname
       mode: 0644
@@ -64,9 +42,15 @@ storage:
       mode: 0644
       contents:
         inline: zfs
+    {% for mount in mounts %}
+    - path: /etc/systemd/system/{{ (mount.path | replace('/','-'))[1:] }}.mount
+      mode: 0644
+      contents:
+        local: .generated/etc/systemd/system/{{ (mount.path | replace('/', '-'))[1:] }}.mount
+    {% endfor %}
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
   trees:
-    - local: dotenv/
+    - local: .generated/dotenv/
       path: /var/containers/dotenv

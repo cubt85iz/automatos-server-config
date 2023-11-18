@@ -12,7 +12,8 @@ clean:
 configure: clean
   #!/usr/bin/env bash
   shopt -s globstar
-  for file in **/*.j2; do ./render_template.py ${file#templates/} "secrets.yml"; done
+  ./generate-mount-units.py
+  for file in **/*.j2; do if [ "$(basename $file)" != "path.mount.j2" ]; then ./render_template.py ${file#templates/} "secrets.yml"; fi; done
 
 # Transpiles butane configurations to create an ignition file
 build:
@@ -31,7 +32,7 @@ build:
   # Build dependent configurations
   shopt -s globstar
   for file in **/*.bu; do
-    if [ "$file" != "config.bu" ]; then
+    if [ "$(basename $file)" != "config.bu" ]; then
       output_file="${file%.bu}.ign"
       butane -p -d . -o "$output_file" "$file"
     fi
@@ -51,5 +52,6 @@ serve:
     . $HOME/.bash_aliases
   fi
 
+  pushd .generated &> /dev/null
   test -f config.ign || just build
   python3 -m http.server

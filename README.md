@@ -4,10 +4,6 @@ This project uses Jinja2 templates to define a butane configuration that can be 
 
 ## Project Structure
 
-### `keys`
-
-This folder contains the public keys for SSH connections.
-
 ### `templates`
 
 This folder contains the Jinja2 templates for the butane configuration. The `config.bu.j2` file contains the primary configuration. Additional templates for hosted services can be found in the `services` folder. The `units` folder contains the Jinja2 templates for the systemd unit files that are associated with the configuration.

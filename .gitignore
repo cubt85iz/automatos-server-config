@@ -1,20 +1,5 @@
-services/**
-units/**
+.generated/**
 
 *.bu
-!services/audiobookshelf.bu
-!services/calibre-web.bu
-!services/gotify.bu
-!services/homer.bu
-!services/jellyfin.bu
-!services/mealie.bu
-!services/mkdocs.bu
-!services/plex.bu
-!services/plexmetamanager.bu
-!services/syncthing.bu
-!services/unifi.bu
-!services/ytsubs.bu
-!services/zap2xml.bu
-
 *.ign
 secrets.yml

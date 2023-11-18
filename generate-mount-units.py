@@ -7,15 +7,8 @@ import os.path
 # Define location for Jinja2 templates
 templates_path = "./templates"
 
-# Define arguments for script
-parser = argparse.ArgumentParser()
-parser.add_argument("template")
-parser.add_argument("secrets")
-
-# Parse arguments into variables.
-args = parser.parse_args()
-template = args.template
-secrets = args.secrets
+template = "path.mount.j2"
+secrets = "secrets.yml"
 
 # Determine output location
 output = os.path.join(os.path.dirname(template), os.path.basename(template)[:-3])
@@ -27,15 +20,18 @@ secrets = yaml.safe_load(open(secrets, 'r'))
 j2_environment = Environment(loader=FileSystemLoader(templates_path), trim_blocks=True, lstrip_blocks=True)
 j2_template = j2_environment.get_template(template)
 
-# Render template
-j2_rendered_template = j2_template.render(secrets)
+for mount in secrets['mounts']:
+  # Determine destination for mount unit
+  destination = f".generated/etc/systemd/system/{mount['path'].replace('/', '-')[1:]}.mount"
 
-# Write rendered template to specified file.
-if (output != None):
+  # Render template
+  j2_rendered_template = j2_template.render(mount)
+
   # Ensure path to output file exists.
-  output_path=f".generated/{os.path.dirname(output)}"
-  if output_path and not os.path.exists(output_path):
-    os.makedirs(output_path)
+  destination_path=os.path.dirname(destination)
+  if not os.path.exists(destination_path):
+    os.makedirs(destination_path)
 
-  with open(f".generated/{output}", '+w') as file:
+  # Write rendered template to specified file.
+  with open(destination, '+w') as file:
     file.write(j2_rendered_template)
