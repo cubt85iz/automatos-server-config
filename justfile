@@ -10,10 +10,7 @@ clean:
 
 # Renders jinja templates to produce butane configurations
 configure: clean
-  #!/usr/bin/env bash
-  shopt -s globstar
-  ./generate-mount-units.py
-  for file in **/*.j2; do if [ "$(basename $file)" != "path.mount.j2" ]; then ./render_template.py ${file#templates/} "secrets.yml"; fi; done
+  python3 configure.py
 
 # Transpiles butane configurations to create an ignition file
 build:
