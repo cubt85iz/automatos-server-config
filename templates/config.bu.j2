@@ -46,11 +46,11 @@ storage:
     - path: /etc/systemd/system/{{ (mount.path | replace('/','-'))[1:] }}.mount
       mode: 0644
       contents:
-        local: .generated/etc/systemd/system/{{ (mount.path | replace('/', '-'))[1:] }}.mount
+        local: etc/systemd/system/{{ (mount.path | replace('/', '-'))[1:] }}.mount
     {% endfor %}
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
   trees:
-    - local: .generated/dotenv/
+    - local: dotenv/
       path: /var/containers/dotenv

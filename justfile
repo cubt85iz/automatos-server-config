@@ -28,6 +28,7 @@ build:
   
   # Build dependent configurations
   shopt -s globstar
+  pushd .generated &> /dev/null
   for file in **/*.bu; do
     if [ "$(basename $file)" != "config.bu" ]; then
       output_file="${file%.bu}.ign"
