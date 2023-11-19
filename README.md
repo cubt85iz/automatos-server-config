@@ -1,6 +1,6 @@
 # OSN (OS for NAS)
 
-This project uses Jinja2 templates to define a butane configuration that can be transpiled to create an ignition file for Fedora CoreOS installations.
+This project uses Jinja2 templates to define a butane configuration that can be transpiled to create an ignition file for Fedora CoreOS installations. The generated ignition file serves as the base for the osn-core project.
 
 ## Project Structure
 
@@ -14,8 +14,6 @@ The `justfile` contains recipes for making it easier to build & deploy the proje
 
 ## Instructions
 
-1. Create butane configurations & systemd unit files for hosted services.
-1. Update the _config.bu.j2_ template to include your added butane configurations.
-1. If necessary, add butane configurations to the .gitignore file.
+1. Update the _config.bu.j2_ template to include your any changes to the butane configuration.
 1. Execute `just serve` to configure, build and serve the ignition file.
 1. Follow the Fedora CoreOS Installation instructions to apply the hosted configuration.
