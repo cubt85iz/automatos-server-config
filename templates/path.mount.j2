@@ -17,3 +17,6 @@ Type={{ type }}
 Options={{ options | join(',') }}
 {% endif %}
 TimeoutSec=60
+
+[Install]
+RequiredBy={{ before | join(' ') }}
