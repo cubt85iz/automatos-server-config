@@ -25,8 +25,70 @@ passwd:
 
 storage:
   directories:
+    - path: /var/containers
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/audiobooks
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/files
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/games
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/movies
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/music
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    - path: /var/containers/volumes/shared/tv
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
     {% for mount in mounts %}
     - path: {{ mount.path }}
+      mode: 0755
+      user:
+        name: root
+      group:
+        name: root
+    {% endfor %}
+    {% for directory in addl_directories %}
+    - path: {{ directory }}
       mode: 0755
       user:
         name: root

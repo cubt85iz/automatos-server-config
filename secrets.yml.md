@@ -20,11 +20,22 @@ users:
 
 ## Container secrets
 
+Secrets for .env templates. Generated .env files will contain the secrets specified here.
+
 ### Audiobookshelf
 
 ```yaml
 audiobookshelf_gid: 1000
 audiobookshelf_uid: 1000
+```
+
+## Additional Directories
+
+Additional directories to add to the generated ignition file (ex. ZFS pool mountpoint)
+
+```yaml
+addl_directories:
+  - /var/tank
 ```
 
 ## Mount configuration
