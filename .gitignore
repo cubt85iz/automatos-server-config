@@ -2,4 +2,6 @@
 
 *.bu
 *.ign
+*.iso
+*.iso.sig
 secrets.yml

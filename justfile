@@ -1,5 +1,9 @@
 set ignore-comments := true
 
+# Download latest stable Fedora CoreOS ISO
+download-iso:
+  podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso 
+
 # Install python package dependencies.
 install-deps:
   python3 -m pip install -r requirements.txt
