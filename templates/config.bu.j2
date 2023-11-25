@@ -32,6 +32,7 @@ storage:
         name: root
       group:
         name: root
+        
     {% endfor %}
     {% for mount in mounts %}
     - path: {{ mount.path }}
@@ -40,6 +41,7 @@ storage:
         name: root
       group:
         name: root
+
     {% for volume in mount.volumes %}
     - path: {{ mount.path }}/{{ volume }}
       mode: 0755
@@ -47,6 +49,7 @@ storage:
         name: root
       group:
         name: root
+
     {% endfor %}
     {% endfor %}
   files:
@@ -54,19 +57,28 @@ storage:
       mode: 0644
       contents:
         inline: {{ hostname }}.{{ domain }}
+
     - path: /etc/modules-load.d/zfs.conf
       mode: 0644
       contents:
         inline: zfs
+
     {% for mount in mounts %}
     - path: /etc/systemd/system/{{ (mount.path | replace('/','-'))[1:] }}.mount
       mode: 0644
       contents:
         local: etc/systemd/system/{{ (mount.path | replace('/', '-'))[1:] }}.mount
+
     {% endfor %}
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
+
+    {% for link in links %}
+    - path: {{ link.path }}
+      target: {{ link.target }}
+
+    {% endfor %}
   trees:
     - local: dotenv/
       path: /var/containers/dotenv
