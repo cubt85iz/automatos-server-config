@@ -26,9 +26,14 @@ def generate_mount_units():
     path = f".generated/etc/systemd/system/{mount['path'].replace('/', '-')[1:]}.mount"
     render_template("path.mount.j2", mount, path)
 
+def generate_healthcheck_url_files():
+  for container in secrets['monitored_containers']:
+    path = f".generated/etc/healthcheck-container@{container['name']}.url"
+    render_template("healthcheck-container.url.j2", container, path)
+
 def generate_butane_configurations():
   for template in glob.iglob("templates/**/*.j2", recursive=True):
-    if os.path.basename(template) != "path.mount.j2":
+    if os.path.basename(template) != "path.mount.j2" and os.path.basename(template) != "healthcheck-container.url.j2":
       render_template(template[template.index("/") + 1:], secrets)
 
 # Define location for Jinja2 templates & secrets
@@ -40,6 +45,9 @@ secrets = yaml.safe_load(open(secrets, 'r'))
 
 # Generate systemd mount units
 generate_mount_units()
+
+# Generate healthcheck files
+generate_healthcheck_url_files()
 
 # Generate butane configuration for transpilation
 generate_butane_configurations()
