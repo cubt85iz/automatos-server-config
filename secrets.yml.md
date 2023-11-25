@@ -38,12 +38,23 @@ addl_directories:
   - /var/tank
 ```
 
+## Links
+
+```yaml
+links:
+  - path: /mnt/volume/movies/adam
+    target: /var/tank/adam/Movies
+  
+  - path: /mnt/volume/movies/andrew
+    target: /var/tank/andrew/Movies
+```
+
 ## Mount configuration
 
 ```yaml
 mounts:
   - path: /mnt/container/container-data
-    target: /tank/container/container-data
+    target: /var/tank/container/container-data
     options:
       - bind
     before:
