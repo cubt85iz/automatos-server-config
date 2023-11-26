@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ mealie_dir }}/data
+Device={{ containers | selectattr("name", "equalto", "mealie") | map(attribute="path") | first }}/data
 User=root
 Group=root

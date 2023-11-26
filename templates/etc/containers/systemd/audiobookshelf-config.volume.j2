@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ audiobookshelf_dir }}/config
+Device={{ containers | selectattr("name", "equalto", "audiobookshelf") | map(attribute="path") | first }}/config
 User=root
 Group=root

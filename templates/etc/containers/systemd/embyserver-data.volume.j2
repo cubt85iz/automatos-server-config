@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ embyserver_dir }}/data
+Device={{ containers | selectattr("name", "equalto", "embyserver") | map(attribute="path") | first }}/data
 User=root
 Group=root

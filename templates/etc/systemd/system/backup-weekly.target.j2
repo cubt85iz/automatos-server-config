@@ -1,0 +1,6 @@
+[Unit]
+Description=Target for weekly container backups
+Wants={% for container in (containers | selectattr('keep_weekly', 'gt', 0) | list) %}backup-weekly@{{ container.name }}.timer {% endfor %}
+
+[Install]
+WantedBy=multi-user.target

@@ -26,8 +26,13 @@ def generate_mount_units():
     path = f".generated/etc/systemd/system/{mount['path'].replace('/', '-')[1:]}.mount"
     render_template("path.mount.j2", mount, path)
 
+def generate_container_config_files():
+  for container in secrets['containers']:
+    path = f".generated/etc/containers/config/{container['name']}.env"
+    render_template("container-config.env.j2", container, path)
+
 def generate_healthcheck_url_files():
-  for container in secrets['monitored_containers']:
+  for container in secrets['containers']:
     path = f".generated/etc/healthcheck-container@{container['name']}.url"
     render_template("healthcheck-container.url.j2", container, path)
 
@@ -45,6 +50,9 @@ secrets = yaml.safe_load(open(secrets, 'r'))
 
 # Generate systemd mount units
 generate_mount_units()
+
+# Generate environment files for containers
+generate_container_config_files()
 
 # Generate healthcheck files
 generate_healthcheck_url_files()

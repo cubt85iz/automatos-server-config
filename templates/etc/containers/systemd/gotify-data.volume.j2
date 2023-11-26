@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ gotify_dir }}/data
+Device={{ containers | selectattr("name", "equalto", "gotify") | map(attribute="path") | first }}/data
 User=root
 Group=root
