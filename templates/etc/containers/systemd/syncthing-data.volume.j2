@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ syncthing_dir }}/data
+Device={{ containers | selectattr("name", "equalto", "syncthing") | map(attribute="path") | first }}/data
 User=root
 Group=root

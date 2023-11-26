@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ plexmetamanager_dir }}/config
+Device={{ containers | selectattr("name", "equalto", "plexmetamanager") | map(attribute="path") | first }}/config
 User=root
 Group=root

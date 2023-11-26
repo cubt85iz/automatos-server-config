@@ -1,5 +1,5 @@
 [Volume]
 VolumeName=%p
-Device={{ nextcloud_dir }}/fts
+Device={{ containers | selectattr("name", "equalto", "nextcloud") | map(attribute="path") | first }}/fts
 User=root
 Group=root
