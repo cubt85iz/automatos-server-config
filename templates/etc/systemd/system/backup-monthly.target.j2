@@ -1,6 +1,6 @@
 [Unit]
 Description=Target for monthly container backups
-Wants={% for container in (containers | selectattr('keep_monthly', 'gt', 0) | list) %}backup-monthly@{{ container.name }}.timer {% endfor %}
+Wants={% for container in (containers | selectattr('keep_monthly', 'defined') | selectattr('keep_monthly', 'gt', 0) | list) %}backup-monthly@{{ container.name }}.timer {% endfor %}
 
 [Install]
 WantedBy=multi-user.target

@@ -31,14 +31,9 @@ def generate_container_config_files():
     path = f".generated/etc/containers/config/{container['name']}.env"
     render_template("container-config.env.j2", container, path)
 
-def generate_healthcheck_url_files():
-  for container in secrets['containers']:
-    path = f".generated/etc/healthcheck-container@{container['name']}.url"
-    render_template("healthcheck-container.url.j2", container, path)
-
 def generate_butane_configurations():
   for template in glob.iglob("templates/**/*.j2", recursive=True):
-    if os.path.basename(template) != "path.mount.j2" and os.path.basename(template) != "healthcheck-container.url.j2":
+    if os.path.basename(template) != "path.mount.j2" and os.path.basename(template) != "container-config.env.j2":
       render_template(template[template.index("/") + 1:], secrets)
 
 # Define location for Jinja2 templates & secrets
@@ -53,9 +48,6 @@ generate_mount_units()
 
 # Generate environment files for containers
 generate_container_config_files()
-
-# Generate healthcheck files
-generate_healthcheck_url_files()
 
 # Generate butane configuration for transpilation
 generate_butane_configurations()

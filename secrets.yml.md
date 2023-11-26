@@ -8,6 +8,12 @@ domain: home.example.com
 timezone: 'Etc/UTC'
 ```
 
+## Host secrets
+
+```yaml
+healthcheck_zfs_url: https://hc-ping.com/<uuid>
+```
+
 ## User configuration
 
 ```yaml
@@ -18,18 +24,7 @@ users:
       - 'ssh-ed25519 <hash>'
 ```
 
-## Container secrets
-
-Secrets for .env templates. Generated .env files will contain the secrets specified here.
-
-### Audiobookshelf
-
-```yaml
-audiobookshelf_gid: 1000
-audiobookshelf_uid: 1000
-```
-
-## Additional Directories
+## Directories
 
 Additional directories to add to the generated ignition file (ex. ZFS pool mountpoint)
 
@@ -70,4 +65,26 @@ mounts:
       - network-online.target
       - nss-lookup.target
     description: Volume for container configuration
+```
+
+## Container configuration
+
+Secrets for .env templates. Generated .env files will contain the secrets specified here.
+
+### Audiobookshelf
+
+```yaml
+containers:
+  - name: audiobookshelf
+    path: /var/containers/volumes/audiobookshelf
+    monitor_url: https://hc-ping.com/<uuid>
+    backup_path: /var/backups/audiobookshelf
+    dataset: zfs/audiobookshelf
+    keep_daily: 0
+    keep_weekly: 4
+    keep_monthly: 6
+    keep_yearly: 0
+    variables:
+      - "AUDIOBOOKSHELF_GID=<gid>"
+      - "AUDIOBOOKSHELF_UID=<uid>"
 ```
