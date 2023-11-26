@@ -26,10 +26,10 @@ users:
 
 ## Directories
 
-Additional directories to add to the generated ignition file (ex. ZFS pool mountpoint)
+Directories to add to the generated ignition file (ex. ZFS pool mountpoint)
 
 ```yaml
-addl_directories:
+directories:
   - /var/tank
 ```
 
