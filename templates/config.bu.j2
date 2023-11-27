@@ -62,6 +62,13 @@ storage:
       mode: 0644
       contents:
         inline: zfs
+    
+    - path: /etc/systemd/zram-generator.conf
+      mode: 0644
+      contents:
+        inline: |
+          # This config file enables a /dev/zram0 device with the default settings
+          [zram0]
 
     {% for mount in mounts %}
     - path: /etc/systemd/system/{{ (mount.path | replace('/','-'))[1:] }}.mount
