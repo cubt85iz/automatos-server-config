@@ -11,6 +11,7 @@ timezone: 'Etc/UTC'
 ## Host secrets
 
 ```yaml
+healthcheck_updates_url: https://hc-ping.com/<uuid>
 healthcheck_zfs_url: https://hc-ping.com/<uuid>
 ```
 

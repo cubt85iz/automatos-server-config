@@ -1,0 +1,6 @@
+[Unit]
+Description=Healthcheck for important updates
+
+[Service]
+ExecStartPre=/usr/bin/test "$(/usr/bin/rpm-ostree status --json | /usr/bin/jq -r '.["cached-update"].advisories[][2] | select (. >= 3)) | /usr/bin/wc -l)" = "0"
+ExecStart=/usr/bin/curl -fsS -m 10 --retry 5 -o /dev/null {{ healthcheck_updates_url }}
