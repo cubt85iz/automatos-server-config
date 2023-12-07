@@ -63,6 +63,9 @@ storage:
       contents:
         inline: zfs
 
+    - path: /var/lib/systemd/linger/core
+      mode: 0644
+
     {% for mount in mounts %}
     - path: /etc/systemd/system/{{ (mount.path | replace('/','-'))[1:] }}.mount
       mode: 0644
