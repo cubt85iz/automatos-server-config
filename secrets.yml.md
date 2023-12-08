@@ -68,6 +68,16 @@ mounts:
     description: Volume for container configuration
 ```
 
+## Samba Configuration
+
+```yaml
+samba:
+  - name: global
+    options:
+      - key: workgroup
+        value: WORKGROUP
+```
+
 ## Container configuration
 
 Secrets for .env templates. Generated .env files will contain the secrets specified here.
