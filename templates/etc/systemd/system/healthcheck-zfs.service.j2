@@ -1,6 +1,0 @@
-[Unit]
-Description=Healthcheck for ZFS pools
-
-[Service]
-ExecStartPre=! /usr/sbin/zpool list -Ho health | grep -qv "ONLINE"
-ExecStart=/usr/bin/curl -fsS -m 10 --retry 5 -o /dev/null {{ healthcheck_zfs_url }}
