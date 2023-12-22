@@ -23,6 +23,12 @@ passwd:
       {% endif %}
   {% endfor %}
 
+boot_device:
+  mirror:
+    devices:
+      - /dev/nvmeXnY
+      - /dev/nvmeXnY
+
 storage:
   directories:
     {% for directory in directories %}
