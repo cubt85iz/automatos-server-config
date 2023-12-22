@@ -26,8 +26,9 @@ passwd:
 boot_device:
   mirror:
     devices:
-      - /dev/nvmeXnY
-      - /dev/nvmeXnY
+      {% for disk in root_disks %}
+      - {{ disk }}
+      {% endfor %}
 
 storage:
   directories:
