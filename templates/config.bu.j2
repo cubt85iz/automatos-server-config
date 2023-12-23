@@ -61,6 +61,7 @@ storage:
 
     {% endfor %}
     {% endfor %}
+
   files:
     - path: /etc/hostname
       mode: 0644
@@ -72,6 +73,12 @@ storage:
       contents:
         inline: zfs
 
+    - path: /etc/samba/smb.conf
+      overwrite: true
+      mode: 0644
+      contents:
+        local: smb.conf
+
     - path: /var/lib/systemd/linger/core
       mode: 0644
 
@@ -82,6 +89,7 @@ storage:
         local: etc/systemd/system/{{ (mount.path | replace('/', '-'))[1:] }}.mount
 
     {% endfor %}
+
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
@@ -91,6 +99,7 @@ storage:
       target: {{ link.target }}
 
     {% endfor %}
+
   trees:
     - local: etc/
       path: /etc
