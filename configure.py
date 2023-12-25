@@ -28,7 +28,7 @@ def generate_mount_units():
 
 def generate_container_config_files():
   for container in secrets['containers']:
-    path = f".generated/home/core/.config/containers/config/{container['name']}.env"
+    path = f".generated/etc/containers/config/{container['name']}.env"
     render_template("container-config.env.j2", container, path)
 
 def generate_butane_configurations():
