@@ -1,5 +1,0 @@
-[Volume]
-VolumeName=%p
-Device={{ containers | selectattr("name", "equalto", "plex") | map(attribute="path") | first }}/config
-User=root
-Group=root

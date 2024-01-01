@@ -1,5 +1,0 @@
-[Volume]
-VolumeName=%p
-Device={{ containers | selectattr("name", "equalto", "audiobookshelf") | map(attribute="path") | first }}/metadata
-User=root
-Group=root

@@ -23,7 +23,8 @@ def render_template(template, secret, destination = None):
 
 def generate_mount_units():
   for mount in secrets['mounts']:
-    path = f".generated/etc/systemd/system/{mount['path'].replace('/', '-')[1:]}.mount"
+    escaped_mount = mount['path'].replace('-', '\\x2d')
+    path = f".generated/etc/systemd/system/{escaped_mount.replace('/', '-')[1:]}.mount"
     render_template("path.mount.j2", mount, path)
 
 def generate_container_config_files():

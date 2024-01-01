@@ -1,6 +1,6 @@
 [Unit]
 Description=Target for daily container backups
-Wants={% for container in (containers | selectattr('keep_daily', 'defined') | selectattr('keep_daily', 'gt', 0) | list) %}backup-daily@{{ container.name }}.timer {% endfor %}
+Wants={% for container in containers if container.keep_daily is defined and container.keep_daily > 0 %}backup-daily@{{ container.name }}.timer {% endfor %}
 
 [Install]
 WantedBy=multi-user.target

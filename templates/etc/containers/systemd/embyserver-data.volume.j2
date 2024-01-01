@@ -1,5 +1,0 @@
-[Volume]
-VolumeName=%p
-Device={{ containers | selectattr("name", "equalto", "embyserver") | map(attribute="path") | first }}/data
-User=root
-Group=root

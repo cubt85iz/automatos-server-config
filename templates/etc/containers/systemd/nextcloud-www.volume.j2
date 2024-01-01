@@ -1,5 +1,0 @@
-[Volume]
-VolumeName=%p
-Device={{ containers | selectattr("name", "equalto", "nextcloud") | map(attribute="path") | first }}/www
-User=root
-Group=root
