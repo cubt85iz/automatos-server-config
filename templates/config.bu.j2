@@ -78,6 +78,21 @@ storage:
       contents:
         local: smb.conf
 
+    {% for key in keys %}
+    - path: {{ key.path }}
+      overwrite: true
+      user:
+        name: {{ key.user }}
+      group:
+        name: {{ key.group }}
+      mode: {{ key.mode }}
+      contents:
+        inline:
+          {% filter indent(width=10) %}
+          {{ key.content }}
+          {% endfilter %}
+    {% endfor %}
+
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
