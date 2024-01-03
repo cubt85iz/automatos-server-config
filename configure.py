@@ -33,9 +33,14 @@ def generate_container_config_files():
     render_template("container-config.env.j2", container, path)
 
 def generate_butane_configurations():
+  excluded_files = ["path.mount.j2", "container-config.env.j2", "rclone.conf.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
-    if os.path.basename(template) != "path.mount.j2" and os.path.basename(template) != "container-config.env.j2":
+    if os.path.basename(template) not in excluded_files:
       render_template(template[template.index("/") + 1:], secrets)
+
+def generate_rclone_configuration():
+  path = ".generated/rclone.conf"
+  render_template("rclone.conf.j2", secrets, path)
 
 # Define location for Jinja2 templates & secrets
 templates_path = "./templates"
@@ -52,3 +57,6 @@ generate_container_config_files()
 
 # Generate butane configuration for transpilation
 generate_butane_configurations()
+
+# Generate rclone configuration
+generate_rclone_configuration()

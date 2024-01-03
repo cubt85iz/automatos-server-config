@@ -78,6 +78,12 @@ storage:
       contents:
         local: smb.conf
 
+    - path: /root/.config/rclone/rclone.conf
+      overwrite: true
+      mode: 0644
+      contents:
+        local: rclone.conf
+
     {% for key in keys %}
     - path: {{ key.path }}
       overwrite: true
