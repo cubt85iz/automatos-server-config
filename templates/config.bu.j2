@@ -173,8 +173,8 @@ systemd:
     {% endfor %}
     {% endif %}
 
-    {% for container in containers if container.name = 'nextcloud' %}
+    {% for container in containers if container.name == 'nextcloud' %}
     - name: nextcloud-background.timer
       enabled: true
-      
+
     {% endfor %}
