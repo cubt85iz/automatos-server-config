@@ -114,6 +114,9 @@ storage:
 
 systemd:
   units:
+    - name: fix-host-keys.service
+      enabled: true
+      
     - name: healthcheck-updates.timer
       enabled: true
 
@@ -172,7 +175,6 @@ systemd:
 
     {% endfor %}
     {% endif %}
-
     {% for container in containers if container.name == 'nextcloud' %}
     - name: nextcloud-background.timer
       enabled: true
