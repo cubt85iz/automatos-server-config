@@ -1,6 +1,0 @@
-[Unit]
-Description=Target for yearly container backups
-Wants={% for container in containers if container.keep_yearly is defined and container.keep_yearly > 0 %}backup-yearly@{{ container.name }}.timer {% endfor %}
-
-[Install]
-WantedBy=multi-user.target
