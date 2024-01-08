@@ -114,51 +114,18 @@ storage:
 
 systemd:
   units:
+    {% set backup_targets = [] %}
+    {% for container in containers if container.backup_path is defined %}
+    {% set result = backup_targets.append(container) %}
+    {% endfor %}
+    {% if backup_targets | length > 0 %}
+    - name: backup.target
+      enabled: true
+
+    {% endif %}
     - name: fix-host-keys.service
       enabled: true
-      
-    - name: healthcheck-updates.timer
-      enabled: true
 
-    - name: healthcheck-zfs.timer
-      enabled: true
-
-    {% set daily_targets = [] %}
-    {% for container in containers if container.keep_daily is defined %}
-    {% set result = daily_targets.append(container) %}
-    {% endfor %}
-    {% if daily_targets | length > 0 %}
-    - name: backup-daily.target
-      enabled: true
-
-    {% endif %}
-    {% set monthly_targets = [] %}
-    {% for container in containers if container.keep_monthly is defined %}
-    {% set result = monthly_targets.append(container) %}
-    {% endfor %}
-    {% if monthly_targets | length > 0 %}
-    - name: backup-monthly.target
-      enabled: true
-
-    {% endif %}
-    {% set weekly_targets = [] %}
-    {% for container in containers if container.keep_weekly is defined %}
-    {% set result = weekly_targets.append(container) %}
-    {% endfor %}
-    {% if weekly_targets | length > 0 %}
-    - name: backup-weekly.target
-      enabled: true
-
-    {% endif %}
-    {% set yearly_targets = [] %}
-    {% for container in containers if container.keep_yearly is defined %}
-    {% set result = yearly_targets.append(container) %}
-    {% endfor %}
-    {% if yearly_targets | length > 0 %}
-    - name: backup-yearly.target
-      enabled: true
-
-    {% endif %}
     {% set healthcheck_targets = [] %}
     {% for container in containers if container.backup_path is defined %}
     {% set result = healthcheck_targets.append(container) %}
@@ -168,6 +135,20 @@ systemd:
       enabled: true
 
     {% endif %}
+    - name: healthcheck-updates.timer
+      enabled: true
+
+    - name: healthcheck-zfs.timer
+      enabled: true
+
+    {% for container in containers if container.name == 'nextcloud' %}
+    - name: nextcloud-background.timer
+      enabled: true
+
+    {% endfor %}
+    - name: podman-auto-update.timer
+      enabled: true
+
     {% if mounts is defined and mounts | length > 0 %}
     {% for mount in mounts %}
     - name: {{ mount.path[1:] | replace("-", "\\x2d") | replace("/", "-") }}.mount
@@ -175,8 +156,3 @@ systemd:
 
     {% endfor %}
     {% endif %}
-    {% for container in containers if container.name == 'nextcloud' %}
-    - name: nextcloud-background.timer
-      enabled: true
-
-    {% endfor %}
