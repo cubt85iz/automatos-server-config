@@ -93,7 +93,7 @@ storage:
         name: {{ key.group }}
       mode: {{ key.mode }}
       contents:
-        inline:
+        inline: |
           {% filter indent(width=10) %}
           {{ key.content }}
           {% endfilter %}
@@ -123,9 +123,6 @@ systemd:
       enabled: true
 
     {% endif %}
-    - name: fix-host-keys.service
-      enabled: true
-
     {% set healthcheck_targets = [] %}
     {% for container in containers if container.backup_path is defined %}
     {% set result = healthcheck_targets.append(container) %}
@@ -135,17 +132,6 @@ systemd:
       enabled: true
 
     {% endif %}
-    - name: healthcheck-updates.timer
-      enabled: true
-
-    - name: healthcheck-zfs.timer
-      enabled: true
-
-    {% for container in containers if container.name == 'nextcloud' %}
-    - name: nextcloud-background.timer
-      enabled: true
-
-    {% endfor %}
     - name: podman-auto-update.timer
       enabled: true
 
