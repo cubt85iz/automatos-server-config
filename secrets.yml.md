@@ -11,8 +11,21 @@ timezone: 'Etc/UTC'
 ## Host secrets
 
 ```yaml
+backup_key: <passphrase>
 healthcheck_updates_url: https://hc-ping.com/<uuid>
 healthcheck_zfs_url: https://hc-ping.com/<uuid>
+rclone_remote: <name>
+rclone_type: <service-name>
+rclone_account: <account-id>
+rclone_key: <account-key>
+shared_dir: <directory-for-shared-volumes>
+keys:
+  - path: <path-to-host-key-target>
+    content: |
+      <host-key-data>
+    owner: root
+    group: root
+    mode: '0600' or '0644'
 ```
 
 ## User configuration
@@ -90,6 +103,7 @@ containers:
     path: /var/containers/volumes/audiobookshelf
     monitor_url: https://hc-ping.com/<uuid>
     backup_path: /var/backups/audiobookshelf
+    backup_monitor_url: https://hc-ping.com/<uuid>
     dataset: zfs/audiobookshelf
     keep_daily: 0
     keep_weekly: 4
