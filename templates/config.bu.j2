@@ -138,6 +138,9 @@ systemd:
     - name: rpm-ostreed-automatic.timer
       enabled: true
 
+    - name: smb.service
+      enabled: true
+
     {% if mounts is defined and mounts | length > 0 %}
     {% for mount in mounts %}
     - name: {{ mount.path[1:] | replace("-", "\\x2d") | replace("/", "-") }}.mount
