@@ -1,4 +1,7 @@
-[{{ rclone_remote }}]
-type = {{ rclone_type }}
-account = {{ rclone_account }}
-key = {{ rclone_key }}
+{% for r in rclone %}
+[{{ r.remote }}]
+type = {{ r.type }}
+account = {{ r.account }}
+key = {{ r.key }}
+
+{% endfor %}
