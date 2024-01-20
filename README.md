@@ -51,7 +51,7 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **description** (string): Description for the mount
 * **samba** (object[]): List of Samba configuration options
   * **options** (object[]): List of key-value pairs for configuration option
-    * **key** (string): Key 
+    * **key** (string): Key
     * **value** (string): Value
 * **containers** (object[]): List of container objects
   * **name** (string): Name for container
@@ -65,6 +65,12 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **keep_monthly** (integer): Number of monthly backups to keep
   * **keep_yearly** (integer): Number of yearly backups to keep
   * **variables** (string[]): List of environment variables for container
+* **sync** (object[]): List of synchronization pairs for rsync
+  * **name** (string): Unique name for synchronization pair
+  * **source** (string): Valid source for synchronization
+  * **target** (string): Valid target for synchronization
+  * **options** (string[]): List of synchronization options
+  * **cooldown** (integer): Number of seconds to between synchronization operations
 
 ## Instructions
 
@@ -75,4 +81,3 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 1. Boot into Fedora CoreOS live distribution.
 1. Execute `sudo coreos-installer install --insecure-ignition --ignition-url http://<web-server-ip>/.generated/config.ign <disk-device>`. Example: `sudo coreos-installer install --insecure-ignition --ignition-url http://192.168.1.100/.generated/config.ign /dev/nvme0n1`.
 1. Execute `poweroff`, unplug the USB drive, and power on the machine again. Follow the instructions for [osn](https://github.com/cubt85iz/osn.git) to rebase to new image.
-

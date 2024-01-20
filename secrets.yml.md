@@ -113,3 +113,18 @@ containers:
       - "AUDIOBOOKSHELF_GID=<gid>"
       - "AUDIOBOOKSHELF_UID=<uid>"
 ```
+
+## Sync Configuration
+
+Uses sync@.service to synchronize pairs. For example, synchronizing music to a USB device.
+
+```yaml
+sync:
+  source: /var/containers/shared-volumes/music
+  target: /dev/disk/by-id/my-usb-disk
+  options:
+    - 'vrlEpoght'
+    - '--modify-window=1'
+    - '--exclude="The Rat Pack"'
+  cooldown: 3600
+```

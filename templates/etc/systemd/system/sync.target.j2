@@ -1,0 +1,6 @@
+[Unit]
+Description=Target for synchronizing files to block devices
+Wants={% for job in sync %}sync@{{ job.name }}.timer {% endfor %}
+
+[Install]
+WantedBy=multi-user.target
