@@ -71,6 +71,9 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **target** (string): Valid target for synchronization
   * **options** (string[]): List of synchronization options
   * **cooldown** (integer): Number of seconds to between synchronization operations
+* **firewall** (object[]): List of firewall zone configurations
+  * **zone** (string): Unique name for firewall zone
+  * **services** (string[]): List of services to enable for firewall zone
 
 ## Instructions
 
