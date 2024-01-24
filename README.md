@@ -19,15 +19,10 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 * **hostname** (string): Hostname for the computer. Value is combined with `domain` and written to `/etc/hostname`.
 * **domain** (string): Domain for the computer. Value is combined with `hostname` and written to `/etc/hostname`.
 * **timezone** (string): String representing a [time zone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
-* **mirrored_disks** (string[]): List of disk devices to use in a mirrored pool for root. (**_Bugged?_**)
-* **backup_passphrase** (string): Passphrase for BorgBackup repositories.
+* **backup_key** (string): Passphrase for BorgBackup repositories.
 * **healthcheck_updates_url** (string): URL for healthcheck for updates. Fails when there are important updates to install.
 * **healthcheck_zfs_url** (string): URL for ZFS healthcheck. Fails when any pool is unhealthy.
-* **rclone** (object[]): Targets for rclone transfers
-  * **remote** (string): Unique name for remote
-  * **type** (string): Type for remote
-  * **account** (string): Account identifier for remote
-  * **key** (string): Key or passphrase for remote
+* **root_disks** (string[]): List of disk devices to use in a mirrored pool for root. (**_Bugged?_**)
 * **host_keys** (object[]): SSH host keys for restoration
   * **path** (string): File path to SSH host key
   * **content** (string): Content for SSH host key (NOTE: Use literal (|) block style to preserve line breaks.)
@@ -49,10 +44,24 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **before** (string[]): List of services dependent on the mount.
   * **after** (string[]): List of services required for the mount.
   * **description** (string): Description for the mount
+* **firewall** (object[]): List of firewall zone configurations
+  * **zone** (string): Unique name for firewall zone
+  * **services** (string[]): List of services to enable for firewall zone
+* **rclone** (object[]): Targets for rclone transfers
+  * **remote** (string): Unique name for remote
+  * **type** (string): Type for remote
+  * **account** (string): Account identifier for remote
+  * **key** (string): Key or passphrase for remote
 * **samba** (object[]): List of Samba configuration options
   * **options** (object[]): List of key-value pairs for configuration option
     * **key** (string): Key
     * **value** (string): Value
+* **sync** (object[]): List of synchronization pairs for rsync
+  * **name** (string): Unique name for synchronization pair
+  * **source** (string): Valid source for synchronization
+  * **target** (string): Valid target for synchronization
+  * **options** (string[]): List of synchronization options
+  * **cooldown** (integer): Number of seconds to between synchronization operations
 * **containers** (object[]): List of container objects
   * **name** (string): Name for container
   * **path** (string): Path for container files
@@ -65,15 +74,6 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **keep_monthly** (integer): Number of monthly backups to keep
   * **keep_yearly** (integer): Number of yearly backups to keep
   * **variables** (string[]): List of environment variables for container
-* **sync** (object[]): List of synchronization pairs for rsync
-  * **name** (string): Unique name for synchronization pair
-  * **source** (string): Valid source for synchronization
-  * **target** (string): Valid target for synchronization
-  * **options** (string[]): List of synchronization options
-  * **cooldown** (integer): Number of seconds to between synchronization operations
-* **firewall** (object[]): List of firewall zone configurations
-  * **zone** (string): Unique name for firewall zone
-  * **services** (string[]): List of services to enable for firewall zone
 
 ## Instructions
 
