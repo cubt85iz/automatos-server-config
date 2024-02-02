@@ -47,6 +47,14 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 * **firewall** (object[]): List of firewall zone configurations
   * **zone** (string): Unique name for firewall zone
   * **services** (string[]): List of services to enable for firewall zone
+* **network** (object[]): Network configurations
+  * **interface** (string): Name for interface
+  * **type** (string): Interface type
+  * **settings** (object[]): Group of settings for protocol
+    * **protocol** (string): Protocol name
+    * **options** (object[]): Key/Value pairs for protocol settings
+      * **key** (string): Property
+      * **value** (string): Value
 * **rclone** (object[]): Targets for rclone transfers
   * **remote** (string): Unique name for remote
   * **type** (string): Type for remote

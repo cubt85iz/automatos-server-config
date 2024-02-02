@@ -1,0 +1,12 @@
+[connection]
+id={{ interface }}
+type={{ type }}
+interface-name={{ interface }}
+
+{% for setting in settings %}
+[{{ setting.protocol }}]
+{% for option in setting.options %}
+{{ option.key }}={{ option.value }}
+{% endfor %}
+
+{% endfor %}
