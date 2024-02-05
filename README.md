@@ -1,4 +1,4 @@
-# OSN (OS for NAS)
+# automatos-server
 
 Toolkit for declarative configuration of a Fedora CoreOS server.
 
@@ -488,4 +488,4 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 1. Execute `just serve` to configure, build and serve the ignition file.
 1. Boot into Fedora CoreOS live distribution.
 1. Execute `sudo coreos-installer install --insecure-ignition --ignition-url http://<web-server-ip>/.generated/config.ign <disk-device>`. Example: `sudo coreos-installer install --insecure-ignition --ignition-url http://192.168.1.100/.generated/config.ign /dev/nvme0n1`.
-1. Execute `poweroff`, unplug the USB drive, and power on the machine again. Follow the instructions for [osn](https://github.com/cubt85iz/osn.git) to rebase to new image.
+1. Execute `poweroff`, unplug the USB drive, and power on the machine again. Follow the instructions for [automatos-server](https://github.com/cubt85iz/automatos-server.git) to rebase to new image.
