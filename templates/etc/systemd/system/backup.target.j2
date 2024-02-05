@@ -1,6 +1,6 @@
 [Unit]
 Description=Target for container backups
-Wants={% for container in containers if container.backup_path is defined %}backup@{{ container.name }}.timer {% endfor %}
+Wants={% for container in containers if container.backup is defined %}backup@{{ container.name }}.timer {% endfor %}
 
 [Install]
 WantedBy=multi-user.target

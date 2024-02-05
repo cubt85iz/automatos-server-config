@@ -23,11 +23,11 @@ passwd:
       {% endif %}
   {% endfor %}
 
-{% if root_disks is defined %}
+{% if disks is defined %}
 boot_device:
   mirror:
     devices:
-      {% for disk in root_disks %}
+      {% for disk in disks %}
       - {{ disk }}
       {% endfor %}
 {% endif %}
