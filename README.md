@@ -117,6 +117,10 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   * **overrides** _(object[])_
 
     Overrides for podman.unit drop-in files.
+ 
+    | :memo: **NOTE** |
+    | -- |
+    | Some container options do not work (ex. `AddHost`). When a container option doesn't work the service is not loaded by systemd. Unsure of what other options do not work, but `Environment` and `Volume` appear to work. |
 
     * **file** (_(string)_)
 
