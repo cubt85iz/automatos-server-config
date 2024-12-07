@@ -32,6 +32,13 @@ def generate_container_config_files():
     path = f".generated/etc/containers/config/{container['name']}.env"
     render_template("container-config.env.j2", container, path)
 
+def generate_container_override_files():
+  for container in secrets['containers']:
+    if 'overrides' in container:
+      for override in container['overrides']:
+        path = f".generated/etc/containers/systemd/{container['name']}.container.d/{override['file']}"
+        render_template("container-override.conf.j2", override, path)
+
 def generate_firewall_configuration():
   for zone in secrets['firewall']:
     path = f".generated/etc/firewalld/zones/{ zone['zone'].lower() }.xml"
@@ -70,6 +77,9 @@ generate_mount_units()
 
 # Generate environment files for containers
 generate_container_config_files()
+
+# Generate override files for containers
+generate_container_override_files()
 
 # Generate butane configuration for transpilation
 generate_butane_configurations()
