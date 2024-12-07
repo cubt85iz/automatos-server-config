@@ -110,9 +110,29 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 
       Number of yearly backups to keep.
 
-  * **variables** _(string[])_
+  * **[DEPRECATED] variables** _(string[])_
   
     List of environment variables for container. Variables should be specified in `KEY=VALUE` format so they can be sourced by systemd unit files.
+
+  * **overrides** _(object[])_
+
+    Overrides for podman.unit drop-in files.
+
+    * **file** (_(string)_)
+
+      Name for drop-in file.
+
+    * **options** (_(object[])_)
+
+      List of options for drop-in file.
+
+      * **key** (_string_)
+
+        Container option for drop-in file.
+
+      * **value** (_string_)
+
+        Value for Container option
 
   Example:
 
@@ -129,11 +149,17 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
         keep_weekly: 4
         keep_monthly: 2
         keep_yearly: 0
-      variables:
-        - "PGID=1000"
-        - "PUID=1000"
-        - "TZ=America/New_York"
-        - "PORT=8080"
+      overrides:
+        - file: 10-mealie-variables.conf
+          options:
+            - key: Environment
+              value: "PGID=1000"
+            - key: Environment
+              value: "PUID=1000"
+            - key: Environment
+              value: "TZ=America/New_York"
+            - key: Environment
+              value: "PORT=8080"
   ```
 
 * **directories** _(string[])_
