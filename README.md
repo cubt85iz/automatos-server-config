@@ -21,7 +21,7 @@ Jinja2 templates are included in the `templates` folder.
 | etc/systemd/system/sync.target.j2 | Creates a systemd target unit (`sync.target`) that contains a timer for each synchronization job that has been specified. |
 | etc/environment.j2 | Creates the `/etc/environment` file containing the variables specified for the host. |
 | config.bu.j2 | Creates the `config.bu` file containing the Butane 1.5.0 compatible configuration. |
-| container-config.env.j2 | Creates the environment files for containers in the `/etc/containers/config` folder. |
+| container-config.env.j2 | **[DEPRECATED]** Creates the environment files for containers in the `/etc/containers/config` folder. |
 | firewalld.xml.j2 | Creates the firewalld configuration files in the `/etc/firewalld/zones` folder. |
 | network.nmconnection.j2 | Creates the network configuration files in the `/etc/NetworkManager/system-connections` folder. |
 | path.mount.j2 | Creates systemd mount units in the `/etc/systemd/system` folder. |
