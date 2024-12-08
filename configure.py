@@ -33,6 +33,12 @@ def generate_container_config_files():
     render_template("container-config.env.j2", container, path)
 
 def generate_container_override_files():
+  # Implicit overrides
+  for container in secrets['containers']:
+    path = f".generated/etc/containers/systemd/{container['name']}.container.d/00-{container['name']}-core.conf"
+    render_template("container-core.conf.j2", container, path)
+
+  # Explicit overrides
   for container in secrets['containers']:
     if 'overrides' in container:
       for override in container['overrides']:

@@ -138,6 +138,10 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 
         Value for Container option
 
+      * **section** (_string_)
+
+        Section of unit file for option
+
   Example:
 
   ```yaml
@@ -164,6 +168,7 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
               value: "TZ=America/New_York"
             - key: Environment
               value: "PORT=8080"
+              section: Service
   ```
 
 * **directories** _(string[])_
