@@ -27,7 +27,7 @@ Environment=KEEP_MONTHLY={{ backup.keep_monthly }}
 {% if backup.keep_yearly is defined %}
 Environment=KEEP_YEARLY={{ backup.keep_yearly }}
 {% endif %}
-
 {% endif %}
+
 [Service]
 Environment=CONTAINER_PATH={{ path }}
