@@ -22,7 +22,7 @@ def render_template(template, secret, destination = None):
     file.write(j2_rendered_template)
 
 def generate_butane_configurations():
-  excluded_files = ["path.mount.j2", "container-config.env.j2", "container-core.conf.j2", "container-healthcheck-override.conf.j2",
+  excluded_files = ["path.mount.j2", "container-backup.conf.j2", "container-config.env.j2", "container-core.conf.j2", "container-healthcheck-override.conf.j2",
                     "container-override.conf.j2", "network.nmconnection.j2", "rclone.conf.j2", "sync.env.j2", "firewalld.xml.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
@@ -42,7 +42,12 @@ def generate_container_override_files():
     # Write monitor_url to a dropin for container healthchecks
     if "monitor_url" in container:
       path = f".generated/etc/systemd/system/healthcheck-container@{container['name']}.service.d/00-healthcheck-variables.conf"
-      render_template("container-healthcheck-override.conf.j2", container, path)
+      render_template("container-healthcheck.conf.j2", container, path)
+
+    # Write variables for backup jobs
+    if "backup" in container:
+      path = f".generated/etc/systemd/system/backup@{container['name']}.service.d/00-backup-variables.conf"
+      render_template("container-backup.conf.j2", container, path)
 
   # Explicit overrides
   for container in secrets['containers']:
