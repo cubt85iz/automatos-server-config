@@ -1,8 +1,8 @@
 [Service]
 Environment=DATASET={{ dataset }}
-Environment=BACKUP_MONITOR_URL={{ backup.monitor_url }}
 Environment=BACKUP_PATH={{ backup.path }}
-Environment=BACKUP_REMOTES=[{{ backup.remotes | join(' ') }}]
+Environment=BACKUP_MONITOR_URL={{ backup.monitor_url }}
+Environment=BACKUP_REMOTES={{ backup.remotes | join(':') }}
 Environment=KEEP_DAILY={{ backup.keep_daily }}
 Environment=KEEP_WEEKLY={{ backup.keep_weekly }}
 Environment=KEEP_MONTHLY={{ backup.keep_monthly }}
