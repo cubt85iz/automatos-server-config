@@ -26,7 +26,9 @@ def generate_butane_configurations():
                     "container-override.conf.j2", "network.nmconnection.j2", "rclone.conf.j2", "sync.env.j2", "firewalld.xml.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
-      render_template(template[template.index("/") + 1:], secrets)
+      if not template.endswith('environment.j2') or \
+        ('environment' in secrets and len(secrets['environment']) > 0):
+        render_template(template[template.index("/") + 1:], secrets)
 
 def generate_container_config_files():
   for container in secrets['containers']:
@@ -74,8 +76,9 @@ def generate_network_configurations():
     os.chmod(path, 0o600)
 
 def generate_rclone_configuration():
-  path = ".generated/rclone.conf"
-  render_template("rclone.conf.j2", secrets, path)
+  if 'rclone' in secrets and len(secrets['rclone']) > 0:
+    path = ".generated/rclone.conf"
+    render_template("rclone.conf.j2", secrets, path)
 
 def generate_sync_jobs():
   for job in secrets['sync']:

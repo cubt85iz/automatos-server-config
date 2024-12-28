@@ -78,11 +78,13 @@ storage:
       contents:
         local: smb.conf
 
+    {% if rclone is defined and rclone | length > 0 %}
     - path: /root/.config/rclone/rclone.conf
       overwrite: true
       mode: 0644
       contents:
         local: rclone.conf
+    {% endif %}
 
     {% for key in keys %}
     - path: {{ key.path }}
