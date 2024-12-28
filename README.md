@@ -168,7 +168,7 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
             - key: Environment
               value: "TZ=America/New_York"
             - key: Environment
-              value: "PORT=8080"
+              value: "WEB_PORT=8080"
               section: Service
   ```
 
@@ -226,7 +226,7 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 
   ```yaml
   firewall:
-    - zone: public
+    - zone: Public
       services:
         - ssh
         - mdns

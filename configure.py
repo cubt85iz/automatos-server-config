@@ -29,13 +29,13 @@ def generate_butane_configurations():
       render_template(template[template.index("/") + 1:], secrets)
 
 def generate_container_config_files():
-  if 'containers' in secrets and any(secrets['containers']):
+  if 'containers' in secrets and secrets['containers'] and any(secrets['containers']):
     for container in secrets['containers']:
       path = f".generated/etc/containers/config/{container['name']}.env"
       render_template("container-config.env.j2", container, path)
 
 def generate_container_override_files():
-  if 'containers' in secrets and any(secrets['containers']):
+  if 'containers' in secrets and secrets['containers'] and any(secrets['containers']):
     # Implicit overrides
     for container in secrets['containers']:
       path = f".generated/etc/containers/systemd/{container['name']}.container.d/00-{container['name']}-core.conf"
@@ -59,36 +59,36 @@ def generate_container_override_files():
           render_template("container-override.conf.j2", override, path)
 
 def generate_environment_configuration():
-  if 'environment' in secrets and any(secrets['environment']):
+  if 'environment' in secrets and secrets['environment'] and any(secrets['environment']):
     render_template("etc/environment.j2", secrets)
 
 def generate_firewall_configuration():
-  if 'firewall' in secrets and any(secrets['firewall']):
+  if 'firewall' in secrets and secrets['firewall'] and any(secrets['firewall']):
     for zone in secrets['firewall']:
       path = f".generated/etc/firewalld/zones/{ zone['zone'].lower() }.xml"
       render_template("firewalld.xml.j2", zone, path)
 
 def generate_mount_units():
-  if 'mounts' in secrets and any(secrets['mounts']):
+  if 'mounts' in secrets and secrets['mounts'] and any(secrets['mounts']):
     for mount in secrets['mounts']:
       escaped_mount = mount['path'].replace('-', '\\x2d')
       path = f".generated/etc/systemd/system/{escaped_mount.replace('/', '-')[1:]}.mount"
       render_template("path.mount.j2", mount, path)
 
 def generate_network_configurations():
-  if 'network' in secrets and any(secrets['network']):
+  if 'network' in secrets and secrets['network'] and any(secrets['network']):
     for network in secrets['network']:
       path = f".generated/etc/NetworkManager/system-connections/{ network['interface'] }.nmconnection"
       render_template("network.nmconnection.j2", network, path)
       os.chmod(path, 0o600)
 
 def generate_rclone_configuration():
-  if 'rclone' in secrets and any(secrets['rclone']):
+  if 'rclone' in secrets and secrets['rclone'] and any(secrets['rclone']):
     path = ".generated/rclone.conf"
     render_template("rclone.conf.j2", secrets, path)
 
 def generate_sync_jobs():
-  if 'sync' in secrets and any(secrets['sync']):
+  if 'sync' in secrets and secrets['sync'] and any(secrets['sync']):
     for job in secrets['sync']:
       path = f".generated/etc/sync@{job['name']}.env"
       render_template("sync.env.j2", job, path)
@@ -108,6 +108,9 @@ generate_container_config_files()
 
 # Generate override files for containers
 generate_container_override_files()
+
+# Generate environment file for system
+generate_environment_configuration()
 
 # Generate butane configuration for transpilation
 generate_butane_configurations()
