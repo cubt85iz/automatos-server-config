@@ -101,6 +101,21 @@ storage:
           {% endfilter %}
     {% endfor %}
 
+    {% for rule in udev_rules %}
+    - path: {{ rule.path }}
+      overwrite: true
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+      contents:
+        inline: |
+          {% filter indent(width=10) %}
+          {{ rule.content }}
+          {% endfilter %}
+    {% endfor %}
+
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
