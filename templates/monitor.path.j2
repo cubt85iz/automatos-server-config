@@ -1,0 +1,14 @@
+[Unit]
+{% if description is defined %}
+Description={{ description }}
+{% endif %}
+Requires={% if service is defined and service.name is defined %}{{ service.name }}{% else %}{{ name }}{% endif %}.service
+
+[Path]
+PathChanged={{ path }}
+{% if service is defined and service.name is defined %}
+Unit={{ service.name }}.service
+{% endif %}
+
+[Install]
+WantedBy=default.target

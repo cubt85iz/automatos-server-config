@@ -40,8 +40,8 @@ def generate_butane_configurations():
   """
   excluded_files = ["path.mount.j2", "container-backup.conf.j2", "container-core.conf.j2",
                     "container-healthcheck.conf.j2", "container-override.conf.j2",
-                    "environment.j2", "firewalld.xml.j2", "network.nmconnection.j2",
-                    "rclone.conf.j2", "sync.conf.j2"]
+                    "environment.j2", "firewalld.xml.j2", "monitor.path.j2", "monitor.service.j2",
+                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
       render_template(template[template.index("/") + 1:], SECRETS)
@@ -95,6 +95,20 @@ def generate_firewall_configuration():
     for zone in SECRETS['firewall']:
       path = f".generated/etc/firewalld/zones/{ zone['zone'].lower() }.xml"
       render_template("firewalld.xml.j2", zone, path)
+
+def generate_monitor_units():
+  """
+  Renders Jinja2 templates to create a filesystem monitor for the specified paths.
+  """
+  if 'monitors' in SECRETS and SECRETS['monitors'] and any(SECRETS['monitors']):
+    for monitor in SECRETS['monitors']:
+      monitor_path = f".generated/etc/systemd/system/{monitor['name']}.path"
+      render_template("monitor.path.j2", monitor, monitor_path)
+
+      service_path = f".generated/etc/systemd/system/{monitor['name']}.service"
+      if 'name' in monitor['service'] and monitor['service']['name']:
+        service_path = f".generated/etc/systemd/system/{monitor['service']['name']}.service"
+      render_template("monitor.service.j2", monitor['service'], service_path)
 
 def generate_mount_units():
   """
@@ -165,3 +179,6 @@ with open(SECRETS, 'r', encoding="utf_8") as stream:
 
   # Generate NetworkManager configuration files
   generate_network_configurations()
+
+  # Generate filesystem monitors
+  generate_monitor_units()
