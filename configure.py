@@ -116,9 +116,19 @@ def generate_mount_units():
   """
   if 'mounts' in SECRETS and SECRETS['mounts'] and any(SECRETS['mounts']):
     for mount in SECRETS['mounts']:
-      escaped_mount = mount['path'].replace('-', '\\x2d')
-      path = f".generated/etc/systemd/system/{escaped_mount.replace('/', '-')[1:]}.mount"
+      escaped_mount = mount['path'].replace('-', '\\x2d').replace('/', '-')[1:]
+      path = f".generated/etc/systemd/system/{escaped_mount}.mount"
       render_template("path.mount.j2", mount, path)
+
+      # Create symlinks to enable mount for each service requiring the mount.
+      for req in mount['before']:
+        service_requires_directory = f".generated/etc/systemd/system/{req}.requires"
+        if not os.path.exists(service_requires_directory):
+          os.makedirs(service_requires_directory)
+
+        link = os.path.join(service_requires_directory, f"{escaped_mount}.mount")
+        os.symlink(f"../{escaped_mount}.mount", link)
+
 
 def generate_network_configurations():
   """
