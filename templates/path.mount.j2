@@ -3,6 +3,9 @@ Description={{ description }}
 {% if before is defined and before | length > 0 %}
 Before={{ before | join (' ') }}
 {% endif %}
+{% if requires is defined and requires | length > 0 %}
+Requires={{ requires | join (' ') }}
+{% endif %}
 {% if after is defined and after | length > 0 %}
 After={{ after | join (' ') }}
 {% endif %}
