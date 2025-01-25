@@ -90,8 +90,8 @@ def generate_rclone_configuration():
 def generate_sync_jobs():
   if 'sync' in secrets and secrets['sync'] and any(secrets['sync']):
     for job in secrets['sync']:
-      path = f".generated/etc/sync@{job['name']}.env"
-      render_template("sync.env.j2", job, path)
+      path = f".generated/etc/systemd/system/sync@{job['name']}.d/00-sync-variables.conf"
+      render_template("sync.conf.j2", job, path)
 
 # Define location for Jinja2 templates & secrets
 templates_path = "./templates"
