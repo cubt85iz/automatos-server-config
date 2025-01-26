@@ -16,7 +16,8 @@ clean:
 configure: clean
   python3 configure.py
 
-# Transpiles butane configurations to create an ignition file
+# Transpiles butane configuration to create an ignition file
+[linux]
 build:
   #!/usr/bin/env bash
 
@@ -43,7 +44,13 @@ build:
   # Build primary configuration
   butane -p -d . -o config.ign config.bu
 
+# Transpiles butane configuration to create an ignition file
+[windows]
+build:
+  ./scripts/build.ps1
+
 # Hosts the ignition file for deployment
+[linux]
 serve:
   #!/usr/bin/env bash
 
@@ -57,3 +64,8 @@ serve:
   pushd .generated &> /dev/null
   test -f config.ign || just build
   python3 -m http.server
+
+# Hosts the ignition file for deployment
+[windows]
+serve:
+  ./scripts/serve.ps1
