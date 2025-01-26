@@ -1,0 +1,10 @@
+[Unit]
+Description={{ timer.description }}
+
+[Timer]
+{% for option in timer.options %}
+{{ option.key }}={{ option.value }}
+{% endfor %}
+
+[Install]
+WantedBy=timers.target

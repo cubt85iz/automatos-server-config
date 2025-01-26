@@ -1,3 +1,4 @@
+{% if dataset is defined or monitor_url is defined or backup is defined %}
 [Container]
 {% if dataset is defined %}
 Environment=DATASET={{ dataset }}
@@ -29,5 +30,8 @@ Environment=KEEP_YEARLY={{ backup.keep_yearly }}
 {% endif %}
 {% endif %}
 
+{% endif %}
+{% if path is defined %}
 [Service]
 Environment=CONTAINER_PATH={{ path }}
+{% endif %}

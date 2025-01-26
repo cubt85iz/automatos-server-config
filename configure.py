@@ -41,7 +41,7 @@ def generate_butane_configurations():
   excluded_files = ["path.mount.j2", "container-backup.conf.j2", "container-core.conf.j2",
                     "container-healthcheck.conf.j2", "container-override.conf.j2",
                     "environment.j2", "firewalld.xml.j2", "monitor.path.j2", "monitor.service.j2",
-                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2"]
+                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2", "timer.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
       render_template(template[template.index("/") + 1:], SECRETS)
@@ -57,6 +57,11 @@ def generate_container_override_files():
       path = (f".generated/etc/containers/systemd/{container['name']}.container.d/"
               f"00-{container['name']}-core.conf")
       render_template("container-core.conf.j2", container, path)
+
+      # Remove empty core dropin files.
+      if os.path.getsize(path) == 0:
+        print(f"INFO: Removed empty drop-in file: {path}")
+        os.remove(path)
 
       # Write monitor_url to a dropin for container healthchecks
       if "monitor_url" in container:
@@ -158,6 +163,15 @@ def generate_sync_jobs():
       path = f".generated/etc/systemd/system/sync@{job['name']}.d/00-sync-variables.conf"
       render_template("sync.conf.j2", job, path)
 
+def generate_timers():
+  """
+  Renders a Jinja2 template for configuring systemd timers.
+  """
+  if 'timers' in SECRETS and SECRETS['timers'] and any(SECRETS['timers']):
+    for timer in SECRETS['timers']:
+      path = f".generated/etc/systemd/system/{timer['name']}.timer"
+      render_template("timer.j2", timer, path)
+
 # Define location for Jinja2 templates & secrets
 TEMPLATES_PATH = "./templates"
 SECRETS = "secrets.yml"
@@ -192,3 +206,6 @@ with open(SECRETS, 'r', encoding="utf_8") as stream:
 
   # Generate filesystem monitors
   generate_monitor_units()
+
+  # Generate systemd timers
+  generate_timers()
