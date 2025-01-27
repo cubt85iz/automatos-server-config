@@ -4,6 +4,16 @@ set ignore-comments := true
 download-iso:
   podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso 
 
+# Install applications required for Windows
+[private]
+install-apps:
+  if ("{{ os() }}" -eq "windows") { winget import -i apps.json }
+
+# Refresh the path environment variable for the current session
+[private]
+refresh-path:
+  $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+
 # Install python package dependencies.
 install-deps:
   python3 -m pip install -r requirements.txt
