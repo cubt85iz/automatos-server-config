@@ -528,4 +528,4 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 
 | :memo: **NOTE** |
 |--|
-| For Windows development, execute the command `winget import -i apps.json` from an administrative Powershell window to install required dependencies. |
+| For Windows development, execute the command `winget import -i apps.json` from an administrative Powershell window to install required dependencies. You will also need to use an administrative powershell window to run the `configure` recipe since it creates symlinks. |

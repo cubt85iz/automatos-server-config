@@ -44,7 +44,8 @@ def generate_butane_configurations():
                     "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2", "timer.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
-      render_template(template[template.index("/") + 1:], SECRETS)
+      # Jinja2 requires use of forward slashes instead of platform-specific path
+      render_template((template[template.index(os.path.sep) + 1:]).replace(os.path.sep, '/'), SECRETS)
 
 def generate_container_override_files():
   """
@@ -131,7 +132,7 @@ def generate_mount_units():
         if not os.path.exists(service_requires_directory):
           os.makedirs(service_requires_directory)
 
-        link = os.path.join(service_requires_directory, f"{escaped_mount}.mount")
+        link = f"{service_requires_directory}/{escaped_mount}.mount"
         os.symlink(f"../{escaped_mount}.mount", link)
 
 

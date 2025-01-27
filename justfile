@@ -1,20 +1,33 @@
 set ignore-comments := true
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # Download latest stable Fedora CoreOS ISO
 download-iso:
   podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso 
 
 # Install python package dependencies.
+[linux]
 install-deps:
   python3 -m pip install -r requirements.txt
+
+# Install python package dependencies.
+[windows]
+install-deps:
+  python -m pip install -r requirements.txt
 
 # Remove all rendered templates and ignition files (excluding secrets.yml).
 clean:
   git clean -x -d -f -e secrets.yml
 
 # Renders jinja templates to produce butane configurations
+[linux]
 configure: clean
   python3 configure.py
+
+# Renders jinja templates to produce butane configurations
+[windows]
+configure: clean
+  python configure.py
 
 # Transpiles butane configuration to create an ignition file
 [linux]
