@@ -10,15 +10,6 @@ After={{ after | join(' ') }}
 {% endif %}
 
 [Service]
-{% for condition in conditions %}
-ExecCondition={{ condition }}
-{% endfor %}
-{% for command in pre_commands %}
-ExecStartPre={{ command }}
-{% endfor %}
-{% for command in commands %}
-ExecStart={{ command }}
-{% endfor %}
-{% for command in post_commands %}
-ExecStartPost={{ command }}
+{% for option in options %}
+{{ option.key }}={{ option.value }}
 {% endfor %}

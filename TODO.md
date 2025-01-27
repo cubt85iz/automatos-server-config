@@ -1,3 +1,3 @@
 # TODO
 
-- Add support for configuring filesystem paths for monitoring.
+- Restructure python code and implement unit testing.
