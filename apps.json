@@ -11,6 +11,9 @@
 				},
 				{
 					"PackageIdentifier" : "Fedora.CoreOS.butane"
+				},
+				{
+					"PackageIdentifier" : "Python.Python.3.13"
 				}
 			],
 			"SourceDetails" :
