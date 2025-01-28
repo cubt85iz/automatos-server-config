@@ -4,4 +4,5 @@
 *.ign
 *.iso
 *.iso.sig
-secrets.yml
+secretspow.yml
+secretsnnk.yml

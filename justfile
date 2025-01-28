@@ -8,7 +8,7 @@ download-iso:
 # Install python package dependencies.
 [linux]
 install-deps:
-  python3 -m pip install -r requirements.txt
+  #python3 -m pip install -r requirements.txt
 
 # Install python package dependencies.
 [windows]
@@ -16,13 +16,14 @@ install-deps:
   python -m pip install -r requirements.txt
 
 # Remove all rendered templates and ignition files (excluding secrets.yml).
-clean:
-  git clean -x -d -f -e secrets.yml
+clean secretfile="secretspow.yml":
+  git clean -x -d -f -e \*secrets\*.yml
 
 # Renders jinja templates to produce butane configurations
 [linux]
-configure: clean
-  python3 configure.py
+configure secretfile="secretspow.yml": 
+  just clean {secretfile}}
+  python3 configure.py {{secretfile}}
 
 # Renders jinja templates to produce butane configurations
 [windows]
@@ -31,9 +32,9 @@ configure: clean
 
 # Transpiles butane configuration to create an ignition file
 [linux]
-build:
+build secretfile="secretspow.yml":
   #!/usr/bin/env bash
-
+  echo {{secretfile}} 
   set -euo pipefail
 
   # Source bash aliases
@@ -42,7 +43,7 @@ build:
   fi
 
   just install-deps
-  test -f config.bu || just configure
+  test -f config.bu || just configure {{secretfile}}
   
   # Build dependent configurations
   shopt -s globstar
@@ -64,7 +65,7 @@ build:
 
 # Hosts the ignition file for deployment
 [linux]
-serve:
+serve secretfile="secretspow.yml":
   #!/usr/bin/env bash
 
   set -euo pipefail
@@ -75,7 +76,7 @@ serve:
   fi
 
   pushd .generated &> /dev/null
-  test -f config.ign || just build
+  test -f config.ign || just build {{secretfile}}
   python3 -m http.server
 
 # Hosts the ignition file for deployment

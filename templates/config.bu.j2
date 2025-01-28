@@ -62,6 +62,10 @@ storage:
     {% endfor %}
     {% endfor %}
   files:
+    - path: /etc/environment
+      overwrite: true
+      mode: 0644
+      
     - path: /etc/hostname
       mode: 0644
       contents:

@@ -9,6 +9,7 @@ import glob
 import os.path
 from jinja2 import Environment, FileSystemLoader
 import yaml
+import sys
 
 def render_template(template, secret, destination = None):
   """
@@ -175,10 +176,17 @@ def generate_timers():
 
 # Define location for Jinja2 templates & secrets
 TEMPLATES_PATH = "./templates"
-SECRETS = "secrets.yml"
+
+# pull the command line arguments
+args = sys.argv[1:]
+if len(args) == 1:
+  secretsfile = args[0]
+else:
+  secretsfile = "secretspow.yml"
+print("Using secrets file: ", secretsfile)
 
 # Load secrets from configuration file into dictionary.
-with open(SECRETS, 'r', encoding="utf_8") as stream:
+with open(secretsfile, 'r', encoding="utf_8") as stream:
   SECRETS = yaml.safe_load(stream)
 
   # Generate systemd mount units
