@@ -182,7 +182,7 @@ args = sys.argv[1:]
 if len(args) == 1:
   secretsfile = args[0]
 else:
-  secretsfile = "secretspow.yml"
+  secretsfile = "secrets.yml"
 print("Using secrets file: ", secretsfile)
 
 # Load secrets from configuration file into dictionary.

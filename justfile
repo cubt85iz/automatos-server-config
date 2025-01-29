@@ -16,12 +16,12 @@ install-deps:
   python -m pip install -r requirements.txt
 
 # Remove all rendered templates and ignition files (excluding secrets.yml).
-clean secretfile="secretspow.yml":
+clean secretfile="secrets.yml":
   git clean -x -d -f -e \*secrets\*.yml
 
 # Renders jinja templates to produce butane configurations
 [linux]
-configure secretfile="secretspow.yml": 
+configure secretfile="secrets.yml": 
   just clean {secretfile}}
   python3 configure.py {{secretfile}}
 
@@ -32,7 +32,7 @@ configure: clean
 
 # Transpiles butane configuration to create an ignition file
 [linux]
-build secretfile="secretspow.yml":
+build secretfile="secrets.yml":
   #!/usr/bin/env bash
   echo {{secretfile}} 
   set -euo pipefail
@@ -65,7 +65,7 @@ build:
 
 # Hosts the ignition file for deployment
 [linux]
-serve secretfile="secretspow.yml":
+serve secretfile="secrets.yml":
   #!/usr/bin/env bash
 
   set -euo pipefail
