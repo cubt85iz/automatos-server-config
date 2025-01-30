@@ -7,9 +7,9 @@ that can be rendered into ignition files for Fedora CoreOS installations.
 
 import glob
 import os.path
+import sys
 from jinja2 import Environment, FileSystemLoader
 import yaml
-import sys
 
 def render_template(template, secret, destination = None):
   """
@@ -46,7 +46,8 @@ def generate_butane_configurations():
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
       # Jinja2 requires use of forward slashes instead of platform-specific path
-      render_template((template[template.index(os.path.sep) + 1:]).replace(os.path.sep, '/'), SECRETS)
+      render_template((template[template.index(os.path.sep) + 1:]).replace(os.path.sep, '/'),
+                      SECRETS)
 
 def generate_container_override_files():
   """
@@ -180,13 +181,13 @@ TEMPLATES_PATH = "./templates"
 # pull the command line arguments
 args = sys.argv[1:]
 if len(args) == 1:
-  secretsfile = args[0]
+  SECRETS_FILE = args[0]
 else:
-  secretsfile = "secrets.yml"
-print("Using secrets file: ", secretsfile)
+  SECRETS_FILE = "secrets.yml"
+print("Using secrets file: ", SECRETS_FILE)
 
 # Load secrets from configuration file into dictionary.
-with open(secretsfile, 'r', encoding="utf_8") as stream:
+with open(SECRETS_FILE, 'r', encoding="utf_8") as stream:
   SECRETS = yaml.safe_load(stream)
 
   # Generate systemd mount units
