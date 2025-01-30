@@ -22,13 +22,18 @@ Jinja2 templates are included in the `templates` folder.
 | etc/environment.j2 | Creates the `/etc/environment` file containing the variables specified for the host. |
 | config.bu.j2 | Creates the `config.bu` file containing the Butane 1.5.0 compatible configuration. |
 | container-backup.conf.j2 | Creates the drop-ins for container services that contain the necessary environment variables for creating backups. |
-| container-config.env.j2 | **[DEPRECATED]** Creates the environment files for containers in the `/etc/containers/config` folder. |
+| container-core.conf.j2 | Creates the _00-<container>-core.conf_ drop-in containing implicit environment variables (ex. CONTAINER_PATH) derived from container configuration. |
+| container-healthcheck.conf.j2 | Creates the drop-in containing the monitor URL for container healthchecks. |
+| container-override.conf.j2 | Creates the specified drop-in files containing explicitly defined variables and volumes for containers. |
 | firewalld.xml.j2 | Creates the firewalld configuration files in the `/etc/firewalld/zones` folder. |
+| monitor.path.j2 | Creates a systemd Path unit for monitoring filesystem paths for changes. |
+| monitor.service.j2 | Creates a systemd Service unit to be invoked by the Path unit. |
 | network.nmconnection.j2 | Creates the network configuration files in the `/etc/NetworkManager/system-connections` folder. |
 | path.mount.j2 | Creates systemd mount units in the `/etc/systemd/system` folder. |
 | rclone.conf.j2 | Creates the `/etc/rclone/rclone.conf` configuration file. |
 | smb.conf.j2 | Creates the `/etc/samba/smb.conf` configuration file. |
-| sync.env.j2 | Creates environment files in `/etc/` that contain the settings for each synchronization job. |
+| sync.conf.j2 | Creates the systemd drop-in containing variable definitions to support a synchronization job. |
+| timer.j2 | Creates a systemd timer unit for periodic execution of a task. |
 
 ### `justfile`
 
@@ -110,10 +115,6 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
     * **keep_yearly** _(integer)_
 
       Number of yearly backups to keep.
-
-  * **[DEPRECATED] variables** _(string[])_
-  
-    List of environment variables for container. Variables should be specified in `KEY=VALUE` format so they can be sourced by systemd unit files.
 
   * **overrides** _(object[])_
 
@@ -292,6 +293,64 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
       target: /usr/share/zoneinfo/America/New_York
   ```
 
+* **monitors** _(object[])_
+
+  List of paths to monitor for filesystem changes. Changes will kick off the specified systemd service.
+
+  * **name** _(string)_
+
+    Name for the systemd Path unit that will be created to monitor the filesystem path.
+
+  * **description** _(string)_
+ 
+    Description of the filesystem monitor for the systemd Path unit
+
+  * **path** _(string)_
+ 
+    Path to be monitored for filesystem changes.
+
+  * **service** _(object)_
+ 
+    The systemd service to be invoked when there is a filesystem change for the monitored path.
+
+    * **description** _(string)_
+   
+      Description of the service that will be invoked.
+   
+    * **options** _(object[])_
+   
+      List of key-value pairs for systemd service files.
+   
+      * **key** _(string)_
+     
+        Key for systemd service.
+     
+      * **value** _(string)_
+     
+        Value for systemd service.
+     
+    * **requires** _(string[])_
+   
+      List of services required for systemd service.
+
+  Example
+
+  ```yaml
+  monitors:
+    - name: music-updated
+      description: Path for monitoring staged music
+      path: /var/home/core/Music
+      service:
+        description: Service for processing new audio files
+        options:
+          - key: ExecCondition
+            value: systemctl is-active --quiet beets.service
+          - key: ExecStart
+            value: podman exec beets /bin/bash -c "beet import /downloads"
+        requires:
+          - beets.service
+  ```
+
 * **mounts** _(object[])_
 
   List of devices to mount. Mount files will be created and stored in `/etc/systemd/system/` for each path specified.
@@ -308,13 +367,17 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
   
     List of options to apply when mounting.
 
+  * **requires** _(string[])_
+ 
+    List of services required for the mount.
+
   * **before** _(string[])_
   
     List of services dependent on the mount.
 
   * **after** _(string[])_
   
-    List of services required for the mount.
+    List of services required to start before mounting.
 
   * **description** _(string)_
   
@@ -328,6 +391,8 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
       target: /var/mounts/binds/locationA
       options:
         - bind
+      requires:
+        - zfs-mount.service
       before:
         - plex.service
       after:
