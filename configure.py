@@ -166,15 +166,6 @@ def generate_sync_jobs():
       path = f".generated/etc/systemd/system/sync@{job['name']}.d/00-sync-variables.conf"
       render_template("sync.conf.j2", job, path)
 
-def generate_timers():
-  """
-  Renders a Jinja2 template for configuring systemd timers.
-  """
-  if 'timers' in SECRETS and SECRETS['timers'] and any(SECRETS['timers']):
-    for timer in SECRETS['timers']:
-      path = f".generated/etc/systemd/system/{timer['name']}.timer"
-      render_template("timer.j2", timer, path)
-
 # Define location for Jinja2 templates & secrets
 TEMPLATES_PATH = "./templates"
 
@@ -216,6 +207,3 @@ with open(SECRETS_FILE, 'r', encoding="utf_8") as stream:
 
   # Generate filesystem monitors
   generate_monitor_units()
-
-  # Generate systemd timers
-  generate_timers()
