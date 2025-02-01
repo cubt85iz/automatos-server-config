@@ -76,6 +76,14 @@ storage:
       contents:
         inline: zfs
 
+    {% for net in network %}
+    {% if net.type != 'wireguard' %}
+    # NetworkManager will ignore this file if it doesn't have proper permissions.
+    - path: /etc/NetworkManager/system-connections/{{ net.interface }}.nmconnection
+      mode: 0600
+    {% endif %}
+    {% endfor %}
+
     - path: /etc/samba/smb.conf
       overwrite: true
       mode: 0644
@@ -151,7 +159,7 @@ storage:
 systemd:
   units:
     {% set backup_targets = [] %}
-    {% for container in containers if container.backup_path is defined %}
+    {% for container in containers if container.backup is defined and container.backup.path is defined %}
     {% set result = backup_targets.append(container) %}
     {% endfor %}
     {% if backup_targets | length > 0 %}
@@ -160,7 +168,7 @@ systemd:
 
     {% endif %}
     {% set healthcheck_targets = [] %}
-    {% for container in containers if container.backup_path is defined %}
+    {% for container in containers if container.monitor_url is defined %}
     {% set result = healthcheck_targets.append(container) %}
     {% endfor %}
     {% if healthcheck_targets | length > 0 %}
