@@ -1,0 +1,17 @@
+[Interface]
+Address = {{ tunnel_address }}
+ListenPort = {{ listen_port }}
+PrivateKey = {{ private_key }}
+SaveConfig = false
+
+{% for peer in peers %}
+[Peer]
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips }}
+{% if endpoint is defined %}
+Endpoint = {{ peer.endpoint }}
+{% endif %}
+{% if keep_alive is defined %}
+PersistentKeepAlive = {{ peer.keep_alive }}
+
+{% endfor %]
