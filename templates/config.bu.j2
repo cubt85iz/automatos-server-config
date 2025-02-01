@@ -82,6 +82,21 @@ storage:
       contents:
         local: smb.conf
 
+    {% for file in files %}
+    - path: {{ file.path }}
+      overwrite: true
+      user:
+        name: {{ file.user }}
+      group:
+        name: {{ file.group }}
+      mode: {{ file.mode }}
+      contents:
+        inline: |
+          {% filter indent(width=10) %}
+          {{ file.contents }}
+          {% endfilter %}
+    {% endfor %}
+
     {% if rclone is defined and rclone | length > 0 %}
     - path: /root/.config/rclone/rclone.conf
       overwrite: true
@@ -169,6 +184,10 @@ systemd:
 
     {% endfor %}
     {% endif %}
+    - name: gssproxy.service
+      mask: true
+      enabled: false
+
     - name: zincati.service
       mask: true
       enabled: false

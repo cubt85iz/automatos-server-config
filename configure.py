@@ -42,7 +42,8 @@ def generate_butane_configurations():
   excluded_files = ["path.mount.j2", "container-backup.conf.j2", "container-core.conf.j2",
                     "container-healthcheck.conf.j2", "container-override.conf.j2",
                     "environment.j2", "firewalld.xml.j2", "monitor.path.j2", "monitor.service.j2",
-                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2", "timer.j2"]
+                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2", "timer.j2",
+                    "wg.conf.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
       # Jinja2 requires use of forward slashes instead of platform-specific path
@@ -128,15 +129,6 @@ def generate_mount_units():
       path = f".generated/etc/systemd/system/{escaped_mount}.mount"
       render_template("path.mount.j2", mount, path)
 
-      # Create symlinks to enable mount for each service requiring the mount.
-      for req in mount['before']:
-        service_requires_directory = f".generated/etc/systemd/system/{req}.requires"
-        if not os.path.exists(service_requires_directory):
-          os.makedirs(service_requires_directory)
-
-        link = f"{service_requires_directory}/{escaped_mount}.mount"
-        os.symlink(f"../{escaped_mount}.mount", link)
-
 
 def generate_network_configurations():
   """
@@ -144,10 +136,15 @@ def generate_network_configurations():
   """
   if 'network' in SECRETS and SECRETS['network'] and any(SECRETS['network']):
     for network in SECRETS['network']:
-      path = (".generated/etc/NetworkManager/system-connections/"
-              f"{ network['interface'] }.nmconnection")
-      render_template("network.nmconnection.j2", network, path)
-      os.chmod(path, 0o600)
+      if network['type'] != 'wireguard':
+        path = (".generated/etc/NetworkManager/system-connections/"
+                f"{ network['interface'] }.nmconnection")
+        render_template("network.nmconnection.j2", network, path)
+        os.chmod(path, 0o600)
+      else:
+        path = f".generated/etc/wireguard/{network['interface']}.conf"
+        render_template("wg.conf.j2", network, path)
+        os.chmod(path, 0o600)
 
 def generate_rclone_configuration():
   """
