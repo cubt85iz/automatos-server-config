@@ -71,6 +71,9 @@ storage:
       contents:
         inline: {{ hostname }}.{{ domain }}
 
+    - path: /etc/hosts
+      overwrite: true
+
     - path: /etc/modules-load.d/zfs.conf
       mode: 0644
       contents:
@@ -190,6 +193,15 @@ systemd:
     - name: {{ mount.path[1:] | replace("-", "\\x2d") | replace("/", "-") }}.mount
       enabled: true
 
+    {% endfor %}
+    {% endif %}
+    {% if network is defined and network | length > 0 %}
+    {% for net in network %}
+    {% if net.type is defined and net.type == 'wireguard' %}
+    - name: wg-quick@{{ net.interface }}.service
+      enabled: true
+    
+    {% endif %}
     {% endfor %}
     {% endif %}
     - name: gssproxy.service

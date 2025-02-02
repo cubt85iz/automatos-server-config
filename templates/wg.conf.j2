@@ -4,14 +4,17 @@ ListenPort = {{ settings.listen_port }}
 PrivateKey = {{ settings.private_key }}
 SaveConfig = false
 
+PostUp = iptables -A FORWARD -i {{ interface }} -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ listen_interface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i {{ interface }} -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ listen_interface }} -j MASQUERADE
+
 {% for peer in settings.peers %}
 [Peer]
 PublicKey = {{ peer.public_key }}
-AllowedIPs = {{ peer.allowed_ips }}
-{% if endpoint is defined %}
-Endpoint = {{ peer.endpoint }}
+{% if peer.endpoint_address is defined %}
+Endpoint = {{ peer.endpoint_address }}
 {% endif %}
-{% if keep_alive is defined %}
+AllowedIPs = {{ peer.allowed_ips }}
+{% if peer.keep_alive is defined %}
 PersistentKeepAlive = {{ peer.keep_alive }}
 {% endif %}
 
