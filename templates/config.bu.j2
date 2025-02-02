@@ -80,13 +80,11 @@ storage:
         inline: zfs
 
     {% for net in network %}
-    {% if net.type != 'wireguard' %}
     # NetworkManager will ignore this file if it doesn't have proper permissions.
     - path: /etc/NetworkManager/system-connections/{{ net.interface }}.nmconnection
       mode: 0600
-    {% endif %}
-    {% endfor %}
 
+    {% endfor %}
     - path: /etc/samba/smb.conf
       overwrite: true
       mode: 0644
@@ -193,15 +191,6 @@ systemd:
     - name: {{ mount.path[1:] | replace("-", "\\x2d") | replace("/", "-") }}.mount
       enabled: true
 
-    {% endfor %}
-    {% endif %}
-    {% if network is defined and network | length > 0 %}
-    {% for net in network %}
-    {% if net.type is defined and net.type == 'wireguard' %}
-    - name: wg-quick@{{ net.interface }}.service
-      enabled: true
-    
-    {% endif %}
     {% endfor %}
     {% endif %}
     - name: gssproxy.service

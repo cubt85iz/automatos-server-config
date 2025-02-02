@@ -39,11 +39,11 @@ def generate_butane_configurations():
   sends them to the renderer. Each of the excluded templates have a specialized
   function for processing.
   """
-  excluded_files = ["path.mount.j2", "container-backup.conf.j2", "container-core.conf.j2",
+  excluded_files = ["container-backup.conf.j2", "container-core.conf.j2",
                     "container-healthcheck.conf.j2", "container-override.conf.j2",
-                    "environment.j2", "firewalld.xml.j2", "monitor.path.j2", "monitor.service.j2",
-                    "network.nmconnection.j2", "rclone.conf.j2", "sync.conf.j2", "timer.j2",
-                    "wg.conf.j2"]
+                    "firewalld.xml.j2", "firewalld-wireguard.xml.j2",
+                    "monitor.path.j2", "monitor.service.j2", "network.nmconnection.j2",
+                    "path.mount.j2", "rclone.conf.j2", "sync.conf.j2"]
   for template in glob.iglob("templates/**/*.j2", recursive=True):
     if os.path.basename(template) not in excluded_files:
       # Jinja2 requires use of forward slashes instead of platform-specific path
@@ -105,6 +105,12 @@ def generate_firewall_configuration():
       path = f".generated/etc/firewalld/zones/{ zone['zone'].lower() }.xml"
       render_template("firewalld.xml.j2", zone, path)
 
+  if 'network' in SECRETS and SECRETS['network'] and any(SECRETS['network']):
+    for interface in SECRETS['network']:
+      if interface['type'] == 'wireguard':
+        path = f".generated/etc/firewalld/services/wireguard-{interface['interface']}.xml"
+        render_template("firewalld-wireguard.xml.j2", interface, path)
+
 def generate_monitor_units():
   """
   Renders Jinja2 templates to create a filesystem monitor for the specified paths.
@@ -136,15 +142,10 @@ def generate_network_configurations():
   """
   if 'network' in SECRETS and SECRETS['network'] and any(SECRETS['network']):
     for network in SECRETS['network']:
-      if network['type'] != 'wireguard':
-        path = (".generated/etc/NetworkManager/system-connections/"
-                f"{ network['interface'] }.nmconnection")
-        render_template("network.nmconnection.j2", network, path)
-        os.chmod(path, 0o600)
-      else:
-        path = f".generated/etc/wireguard/{network['interface']}.conf"
-        render_template("wg.conf.j2", network, path)
-        os.chmod(path, 0o600)
+      path = (".generated/etc/NetworkManager/system-connections/"
+              f"{ network['interface'] }.nmconnection")
+      render_template("network.nmconnection.j2", network, path)
+      os.chmod(path, 0o600)
 
 def generate_rclone_configuration():
   """

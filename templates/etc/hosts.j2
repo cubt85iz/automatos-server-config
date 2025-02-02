@@ -6,13 +6,6 @@
 # 192.168.1.10 foo.example.org foo
 # 192.168.1.13 bar.example.org bar
 
-{% if network | selectattr('type', 'equalto', 'wireguard') is defined %}
-# Wireguard Peers
-{% endif %}
-{% for net in network if network is defined %}
-{% if net.type == 'wireguard' %}
-{% for peer in net.settings.peers %}
-{{ peer.host }}.{{ peer.endpoint_address[:-6] }} {{ peer.allowed_ips[:-3] }}
-{% endfor %}
-{% endif %}
+{% for host in hosts if hosts is defined and hosts | length > 0 %}
+{{ host.ip }} {{ host.host }}
 {% endfor %}

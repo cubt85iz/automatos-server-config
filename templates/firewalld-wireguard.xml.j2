@@ -2,5 +2,5 @@
 <service>
   <short>WireGuard S2S</short>
   <description>WireGuard is the simple, fast and modern VPN. The port needs to be open if a peer has this host explicitly configured as endpoint.</description>
-  <port protocol="udp" port="{{ network | selectattr('interface', 'equalto', 'wg0') | map(attribute='settings') | map(attribute='listen_port') | first }}"/>
+  <port protocol="udp" port="{% for setting in settings %}{% if setting.protocol == 'wireguard' %}{% for option in setting.options %}{% if option.key == "listen-port" %}{{ option.value }}{% endif %}{% endfor %}{% endif %}{% endfor %}"/>
 </service>
