@@ -148,6 +148,12 @@ storage:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/New_York
 
+    - path: /etc/systemd/system/multi-user.target.wants/nfs-server.service
+      target: /usr/lib/systemd/system/nfs-server.service
+
+    - path: /etc/systemd/system/multi-user.target.wants/smb.service
+      target: /usr/lib/systemd/system/smb.service
+
     {% for link in links %}
     - path: {{ link.path }}
       target: {{ link.target }}
@@ -181,9 +187,6 @@ systemd:
       enabled: true
 
     - name: rpm-ostreed-automatic.timer
-      enabled: true
-
-    - name: smb.service
       enabled: true
 
     {% if mounts is defined and mounts | length > 0 %}
