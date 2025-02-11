@@ -16,16 +16,19 @@ Jinja2 templates are included in the `templates` folder.
 
 | **Template** | **Description** |
 |:--|:--|
+| etc/samba/smbusers.export.j2 | Creates file containing the samba users to create on system startup. |
 | etc/systemd/system/backup.target.j2 | Creates systemd target unit (`backup.target`) that contains a timer for each container that has a backup configuration specified. |
 | etc/systemd/system/healthcheck-container.target.j2 | Creates systemd target unit (`healthcheck-container.target`) that contains a timer for each container that has a monitoring URL. |
 | etc/systemd/system/sync.target.j2 | Creates a systemd target unit (`sync.target`) that contains a timer for each synchronization job that has been specified. |
 | etc/environment.j2 | Creates the `/etc/environment` file containing the variables specified for the host. |
+| etc/hosts.j2 | Creates the `/etc/hosts` file containing the provided ip & host mappings. |
 | config.bu.j2 | Creates the `config.bu` file containing the Butane 1.5.0 compatible configuration. |
 | container-backup.conf.j2 | Creates the drop-ins for container services that contain the necessary environment variables for creating backups. |
 | container-core.conf.j2 | Creates the _00-<container>-core.conf_ drop-in containing implicit environment variables (ex. CONTAINER_PATH) derived from container configuration. |
 | container-healthcheck.conf.j2 | Creates the drop-in containing the monitor URL for container healthchecks. |
 | container-override.conf.j2 | Creates the specified drop-in files containing explicitly defined variables and volumes for containers. |
 | firewalld.xml.j2 | Creates the firewalld configuration files in the `/etc/firewalld/zones` folder. |
+| firewalld-wireguard.xml.j2 | Creates a firewalld service for wireguard connections. |
 | monitor.path.j2 | Creates a systemd Path unit for monitoring filesystem paths for changes. |
 | monitor.service.j2 | Creates a systemd Service unit to be invoked by the Path unit. |
 | network.nmconnection.j2 | Creates the network configuration files in the `/etc/NetworkManager/system-connections` folder. |
@@ -33,7 +36,6 @@ Jinja2 templates are included in the `templates` folder.
 | rclone.conf.j2 | Creates the `/etc/rclone/rclone.conf` configuration file. |
 | smb.conf.j2 | Creates the `/etc/samba/smb.conf` configuration file. |
 | sync.conf.j2 | Creates the systemd drop-in containing variable definitions to support a synchronization job. |
-| timer.j2 | Creates a systemd timer unit for periodic execution of a task. |
 
 ### `justfile`
 
@@ -41,12 +43,12 @@ The `justfile` contains recipes for making it easier to build & deploy the proje
 
 |**Recipe** | **Description** |
 |:--|:--|
-| build | Uses `butane` to transpile configuration into an ignition file. |
-| clean | Removes all rendered templates, Ignition files and untracked files. |
-| configure | Renders Jinja2 templates to produce files and Butane-compatible configuration. |
+| build [secretfile]| Uses `butane` to transpile configuration into an ignition file. |
+| clean [secretfile]| Removes all rendered templates, Ignition files and untracked files. |
+| configure [secretfile]| Renders Jinja2 templates to produce files and Butane-compatible configuration. |
 | download-iso | Downloads the latest stable Fedora CoreOS ISO. |
 | install-deps | Installs python package dependencies. |
-| serve | Spins up a web server to host the generated Ignition file. |
+| serve [secretfile]| Spins up a web server to host the generated Ignition file. |
 
 ## Specification
 
@@ -231,6 +233,26 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
       services:
         - ssh
         - mdns
+  ```
+
+* **hosts** _(object[])_
+
+  IP address to host mappings for `/etc/hosts` file.
+
+  * **ip** _(string)_
+ 
+    IP address for host.
+
+  * **host** _(string)_
+ 
+    Name for host
+
+  Example:
+
+  ```yaml
+  hosts:
+    - ip: 192.168.1.2
+      host: mypc
   ```
 
 * **keys** _(object[])_
@@ -483,47 +505,53 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 
   List of options that represent the Samba configuration.
 
-  * **options** _(object[])_
+  * **configuration** _(object[])_
+
+    * **options** _(object[])_
   
-    List of key-value pairs for configuration option.
+      List of key-value pairs for configuration option.
 
-    * **key** _(string)_
+      * **key** _(string)_
 
-      Samba property (ex. `read only`).
+        Samba property (ex. `read only`).
 
-    * **value** _(string)_
+      * **value** _(string)_
 
-      Value for Samba property (ex. `no`).
+        Value for Samba property (ex. `no`).
+  * **users** _(string[])_
+ 
+    Exports of samba user data using `sudo pdbedit -L -w`.
 
   Example:
 
   ```yaml
   samba:
-    - name: global
-      options:
-        - key: netbios name
-          value: myserver
-        - key: workgroup
-          value: WORKGROUP
-        - key: server string
-          value: Samba %v server
-        - key: security
-          value: user
-        - key: passdb backend
-          value: tdbsam
-        - key: include
-          value: /etc/samba/usershares.conf
-          comment: Install samba-usershares package for support
-    - name: shared_docs
-      options:
-        - key: comment
-          value: Folder for Shared Documents
-        - key: path
-          value: /var/my/shared/docs
-        - key: read only
-          value: no
-        - key: browseable
-          value: yes
+    configuration:
+      - name: global
+        options:
+          - key: netbios name
+            value: myserver
+          - key: workgroup
+            value: WORKGROUP
+          - key: server string
+            value: Samba %v server
+          - key: security
+            value: user
+          - key: passdb backend
+            value: tdbsam
+          - key: include
+            value: /etc/samba/usershares.conf
+            comment: Install samba-usershares package for support
+      - name: shared_docs
+        options:
+          - key: comment
+            value: Folder for Shared Documents
+          - key: path
+            value: /var/my/shared/docs
+          - key: read only
+            value: no
+          - key: browseable
+            value: yes
   ```
 
 * **sync** _(object[])_
