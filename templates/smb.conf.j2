@@ -7,6 +7,7 @@
 # SMB1 is disabled by default. This means clients without support for SMB2 or
 # SMB3 are no longer able to connect to smbd (by default).
 
+{% if samba is defined %}
 {% for section in samba.configuration %}
 [{{ section.name }}]
 {% for option in section.options %}
@@ -17,3 +18,4 @@
 {% endfor %}
 
 {% endfor %}
+{% endif %}
