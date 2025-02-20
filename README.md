@@ -612,7 +612,8 @@ This specification extends the Fedora CoreOS Butane Configuration Specification 
 ## Instructions
 
 1. Update the `config.bu.j2` template to include any changes to the butane configuration.
-1. Define secrets in the `secrets.yml` file. Use the `secrets.yml.md` file as an example.
+1. Define secrets in the `secrets.yml` file. Use the `secrets.yml.example` file as an example.
+1. To configure Samba within the `secrets.yml` file, use the `smb.conf.example` file as an example to use for building the key value pairs.
 1. Execute `just download-iso` to download the latest Fedora CoreOS ISO file. Write the ISO to a USB drive using Etcher (or similar tool)
 1. Execute `just serve` to configure, build and serve the ignition file.
 1. Boot into Fedora CoreOS live distribution.
