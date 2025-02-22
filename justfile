@@ -10,16 +10,18 @@ build-ignition $FILE FILES_DIR='.':
 
   mkdir -p ".generated/${FILE%/*}"
 
-  butane -p -d "{{FILES_DIR}}" -o ".generated/${FILE%.*}.ign" "${FILE}"
+  podman run --rm -i -v .:/files:z,rw --workdir /files quay.io/coreos/butane:release \
+    --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > ".generated/${FILE%.*}.ign"
+  # butane -p -d "{{FILES_DIR}}" -o ".generated/${FILE%.*}.ign" "${FILE}"
 
 [linux]
 [private]
 validate-ignition $FILE:
   #!/usr/bin/env bash
 
-  set -euox pipefail
+  set -euo pipefail
 
-  podman run --rm --pull=always -i quay.io/coreos/ignition-validate:release - < "$FILE"
+  podman run --rm -i quay.io/coreos/ignition-validate:release - < "$FILE"
 
 # Transpiles butane configuration(s) to create ignition file(s)
 [linux]
@@ -27,6 +29,9 @@ build:
   #!/usr/bin/env bash
 
   set -euox pipefail
+
+  # Pull latest ignition-validate image.
+  podman pull -q quay.io/coreos/butane:release > /dev/null
 
   # Build dependent configurations
   for FILE in config/**/*.bu; do
@@ -58,9 +63,11 @@ lint:
 
   set -euo pipefail
 
+  podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
+
   shopt -s globstar
   for FILE in config/**/*.bu; do
-    podman run --rm docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
+    podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
   done
 
 # Hosts the ignition files for deployment
@@ -89,10 +96,17 @@ serve:
 validate:
   #!/usr/bin/env bash
 
-  set -euox pipefail
+  set -euo pipefail
 
-  pushd config &> /dev/null
-  test -f *.ign || (echo "ERROR: No ignition files found." && exit 1)
-  for FILE in config/*.bu; do
-    just build-ignition "$FILE" ".generated"
-  done
+  # Pull latest ignition-validate image.
+  podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
+
+  if [ -d ".generated/config" ]; then
+    shopt -s globstar
+    for FILE in .generated/**/*.ign; do
+      just validate-ignition "$FILE"
+    done
+  else
+    echo "ERROR: Unable to locate ignition files directory."
+    exit 1
+  fi
