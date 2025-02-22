@@ -1,12 +1,13 @@
 set ignore-comments := true
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
+# Helper for build recipe.
 [linux]
 [private]
 build-ignition $FILE FILES_DIR='.':
   #!/usr/bin/env bash
 
-  set -euox pipefail
+  set -euo pipefail
 
   mkdir -p ".generated/${FILE%/*}"
 
@@ -14,6 +15,7 @@ build-ignition $FILE FILES_DIR='.':
     --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > ".generated/${FILE%.*}.ign"
   # butane -p -d "{{FILES_DIR}}" -o ".generated/${FILE%.*}.ign" "${FILE}"
 
+# Helper for validate recipe.
 [linux]
 [private]
 validate-ignition $FILE:
@@ -28,7 +30,7 @@ validate-ignition $FILE:
 build:
   #!/usr/bin/env bash
 
-  set -euox pipefail
+  set -euo pipefail
 
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/butane:release > /dev/null
@@ -48,15 +50,68 @@ build:
 build:
   ./scripts/build.ps1
 
-# Remove all rendered templates and ignition files (excluding secrets.yml).
+# Remove all rendered ignition files.
 clean:
-  git clean -x -d -f -e config -e \*secrets\*.yml
+  rm -rf .generated
+
+# Creates archives for configurations
+[linux]
+create-archives *config:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Create directory for archives
+  mkdir -p config/.archives
+
+  FOLDERS=()
+  if [ -z "{{ config }}" ]; then
+
+    # Read list of folders in `config` into array
+    readarray -t FOLDERS < <(ls -1 -d config/*/)
+  else
+
+    # Read list of configs from command-line
+    read -a FOLDERS <<< "{{ config }}"
+    FOLDERS=(${FOLDERS[@]/#/config\/})
+    FOLDERS=(${FOLDERS[@]/%/\/})
+  fi
+
+  # Iterate over array and create archives.
+  for FOLDER in "${FOLDERS[@]}"; do
+    ARCHIVE="config/.archives/$(basename $FOLDER).tar"
+    PATTERN=${FOLDER%*/}*
+    tar cf "$ARCHIVE" $PATTERN
+    echo "Created archive: $ARCHIVE"
+  done
 
 # Download latest stable Fedora CoreOS ISO
 download-iso:
-  podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso 
+  podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
 
-# Lint butane files
+# Extract archives for configurations
+[linux]
+extract-archives *config:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  ARCHIVES=()
+  if [ -z "{{ config }}" ]; then
+    readarray -t ARCHIVES < <(ls -1 config/.archives/*.tar)
+  else
+    read -a ARCHIVES <<< "{{ config }}"
+    ARCHIVES=(${ARCHIVES[@]/#/config\/.archives\/})
+    ARCHIVES=(${ARCHIVES[@]/%/.tar})
+  fi
+
+  # Iterate over array and extract archives.
+  for ARCHIVE in "${ARCHIVES[@]}"; do
+    tar xf "$ARCHIVE"
+    echo "Extracted archive: $ARCHIVE"
+  done
+
+# [REFACTOR] Lint butane files using own container.
 [linux]
 lint:
   #!/usr/bin/env bash
@@ -91,7 +146,7 @@ serve:
 serve:
   ./scripts/serve.ps1
 
-# Validate ignition files
+# Validate generated ignition files
 [linux]
 validate:
   #!/usr/bin/env bash
