@@ -9,11 +9,13 @@ build-ignition $FILE FILES_DIR='.':
 
   set -euo pipefail
 
-  mkdir -p ".generated/${FILE%/*}"
+  IGNITION_FILE=".generated/${FILE%.*}.ign"
+  mkdir -p "$(dirname $IGNITION_FILE)"
 
-  podman run --rm -i -v .:/files:z,rw --workdir /files quay.io/coreos/butane:release \
-    --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > ".generated/${FILE%.*}.ign"
-  # butane -p -d "{{FILES_DIR}}" -o ".generated/${FILE%.*}.ign" "${FILE}"
+  podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
+    --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+
+  echo "Generated ignition file: $IGNITION_FILE"
 
 # Helper for validate recipe.
 [linux]
@@ -35,14 +37,21 @@ build:
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/butane:release > /dev/null
 
-  # Build dependent configurations
+  # Create stack of butane files for processing. Otherwise, files
+  # will be processed in the incorrect order, causing errors.
+  shopt -s globstar
+  CONFIG_STACK=()
   for FILE in config/**/*.bu; do
-    just build-ignition "$FILE"
+    CONFIG_STACK=("$FILE" "${CONFIG_STACK[@]}")
   done
 
-  # Build primary configurations
-  for FILE in config/*.bu; do
-    just build-ignition "$FILE" ".generated"
+  # Build configurations in the stack
+  for FILE in ${CONFIG_STACK[@]}; do
+    if [ "$(dirname $FILE)" != "config" ]; then
+      just build-ignition "$FILE"
+    else
+      just build-ignition "$FILE" ".generated"
+    fi
   done
 
 # Transpiles butane configuration(s) to create ignition file(s)
