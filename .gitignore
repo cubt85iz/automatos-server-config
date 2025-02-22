@@ -4,4 +4,5 @@
 *.ign
 *.iso
 *.iso.sig
+*.tar
 secrets*.yml
