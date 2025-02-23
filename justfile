@@ -12,10 +12,10 @@ build-ignition $FILE FILES_DIR='.':
   IGNITION_FILE=".generated/${FILE%.*}.ign"
   mkdir -p "$(dirname $IGNITION_FILE)"
 
+  echo "Generating ignition file: $IGNITION_FILE"
+
   podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
     --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
-
-  echo "Generated ignition file: $IGNITION_FILE"
 
 # Helper for validate recipe.
 [linux]
@@ -24,6 +24,8 @@ validate-ignition $FILE:
   #!/usr/bin/env bash
 
   set -euo pipefail
+
+  echo "Validating ignition file: $FILE"
 
   podman run --rm -i quay.io/coreos/ignition-validate:release - < "$FILE"
 
@@ -131,8 +133,8 @@ lint:
 
   shopt -s globstar
   for FILE in config/**/*.bu; do
+    echo "Linting butane file: $FILE"
     podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
-    echo "Linted butane file: $FILE"
   done
 
 # Hosts the ignition files for deployment
@@ -142,13 +144,7 @@ serve:
 
   set -euo pipefail
 
-  # Source bash aliases
-  if [ -f $HOME/.bash_aliases ]; then
-    . $HOME/.bash_aliases
-  fi
-
   pushd .generated &> /dev/null
-  test -f *.ign || just build
   python3 -m http.server
 
 # Hosts the ignition file for deployment
