@@ -4,7 +4,7 @@ version: 1.6.0
 
 storage:
   files:
-    - path: /etc/containers/systemd/homeassistant.container.d/10-lubelogger-variables.conf
+    - path: /etc/containers/systemd/lubelogger.container.d/10-lubelogger-variables.conf
       overwrite: true
       contents:
         inline: |
