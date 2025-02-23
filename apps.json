@@ -11,6 +11,9 @@
 				},
 				{
 					"PackageIdentifier" : "Docker.DockerDesktop"
+				},
+				{
+					"PackageIdentifier" : "Python.Python.3.13"
 				}
 			],
 			"SourceDetails" :
