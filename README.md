@@ -4,7 +4,7 @@ Toolkit for managing secrets for a server based on Fedora CoreOS.
 
 ## Project Overview
 
-This project provides recipes for building Ignition (*.ign) files from Butane(*.bu) files stored in the config folder.
+This project provides recipes for building Ignition (*.ign) files from Butane(*.bu) files stored in the `config` folder.
 
 ## Usage
 

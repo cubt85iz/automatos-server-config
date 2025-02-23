@@ -132,6 +132,7 @@ lint:
   shopt -s globstar
   for FILE in config/**/*.bu; do
     podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
+    echo "Linted butane file: $FILE"
   done
 
 # Hosts the ignition files for deployment

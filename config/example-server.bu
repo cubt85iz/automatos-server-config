@@ -1,8 +1,9 @@
+---
 variant: fcos
 version: 1.6.0
 ignition:
   config:
-    merge: 
+    merge:
       - local: config/shared/zfs.ign
       - local: config/example-server/firewall.ign
       - local: config/example-server/lubelogger.ign
@@ -42,5 +43,3 @@ passwd:
   users:
     - name: core
       password_hash: '<some-password-hash>'
-      ssh_authorized_keys:
-        - 'ssh-ed25519 <some-public-key>'
