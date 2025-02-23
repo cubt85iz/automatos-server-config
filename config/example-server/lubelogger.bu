@@ -1,0 +1,16 @@
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/homeassistant.container.d/10-lubelogger-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          Environment=WEB_PORT=8457
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0600

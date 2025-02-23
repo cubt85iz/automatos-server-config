@@ -1,0 +1,46 @@
+variant: fcos
+version: 1.6.0
+ignition:
+  config:
+    merge: 
+      - local: config/shared/zfs.ign
+      - local: config/example-server/firewall.ign
+      - local: config/example-server/lubelogger.ign
+
+storage:
+  disks:
+    - device: /dev/disk/by-id/coreos-boot-disk
+      wipe_table: false
+      partitions:
+        - number: 4
+          label: root
+          size_mib: 20480
+          resize: true
+        - size_mib: 0
+          label: tank
+
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: server.example.com
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+  links:
+    - path: /etc/localtime
+      target: /usr/share/zoneinfo/America/New_York
+      user:
+        name: root
+      group:
+        name: root
+
+passwd:
+  users:
+    - name: core
+      password_hash: '<some-password-hash>'
+      ssh_authorized_keys:
+        - 'ssh-ed25519 <some-public-key>'

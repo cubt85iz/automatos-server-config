@@ -1,0 +1,15 @@
+---
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/modules-load.d/zfs.conf
+      overwrite: true
+      contents:
+        inline: zfs
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

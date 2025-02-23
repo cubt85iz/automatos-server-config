@@ -10,10 +10,7 @@
 					"PackageIdentifier" : "Casey.Just"
 				},
 				{
-					"PackageIdentifier" : "Fedora.CoreOS.butane"
-				},
-				{
-					"PackageIdentifier" : "Python.Python.3.13"
+					"PackageIdentifier" : "Docker.DockerDesktop"
 				}
 			],
 			"SourceDetails" :
