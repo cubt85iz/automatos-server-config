@@ -3,7 +3,6 @@
 *.bu
 !config/example-server.bu
 !config/example-server/*.bu
-!config/shared/zfs.bu
 
 *.ign
 *.iso
