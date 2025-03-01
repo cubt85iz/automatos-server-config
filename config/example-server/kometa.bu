@@ -51,10 +51,10 @@ systemd:
       contents: |
         [Unit]
         Description=Periodically run Kometa to manage collection in Plex
-        
+
         [Timer]
         OnBootSec=15min
         OnUnitInactiveSec=2h
-        
+
         [Install]
         WantedBy=timers.target

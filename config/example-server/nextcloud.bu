@@ -63,7 +63,7 @@ systemd:
       contents: |
         [Unit]
         Description=Service for background jobs for Nextcloud container
-        
+
         [Service]
         ExecCondition=/bin/sh -c "/usr/bin/systemctl is-active nextcloud"
         ExecStart=/usr/bin/podman exec -it -u www-data nextcloud php /var/www/html/cron.php
@@ -73,9 +73,9 @@ systemd:
       contents: |
         [Unit]
         Description=Runs background jobs for Nextcloud container
-        
+
         [Timer]
         OnCalendar=*:0/5
-        
+
         [Install]
         WantedBy=timers.target
