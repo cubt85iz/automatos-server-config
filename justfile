@@ -39,16 +39,10 @@ build:
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/butane:release > /dev/null
 
-  # Create stack of butane files for processing. Otherwise, files
-  # will be processed in the incorrect order, causing errors.
+  # Build configurations
   shopt -s globstar
-  CONFIG_STACK=()
-  for FILE in config/**/*.bu; do
-    CONFIG_STACK=("$FILE" "${CONFIG_STACK[@]}")
-  done
-
-  # Build configurations in the stack
-  for FILE in ${CONFIG_STACK[@]}; do
+  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | sort -rV)
+  for FILE in ${BUTANE_FILES[@]}; do
     if [ "$(dirname $FILE)" != "config" ]; then
       just build-ignition "$FILE"
     else
