@@ -103,4 +103,16 @@ serve:
   
 [windows]
 validate:
-  Write-Error "Not Implemented."
+  #!powershell.exe
+
+  # Pull the latest image
+  docker pull -q quay.io/coreos/ignition-validate:release
+
+  Get-ChildItem .generated/config -Filter "*.ign" -Recurse | ForEach-Object {
+
+    # Determine relative path to file
+    $relativePath = $_ | Resolve-Path -Relative
+
+    # Validate ignition file
+    just validate-ignition $_
+  }
