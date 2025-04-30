@@ -1,8 +1,20 @@
 # Helper for build recipe.
 [windows]
 [private]
-build-ignition file dir='.':
-  Write-Error "Not implemented."
+build-ignition file depth:
+    $parent = Split-Path {{ file }}
+  
+    # Create parent directory for 
+    if (!(Test-Path "$parent")) {
+      New-Item -ItemType Directory -Path $parent
+    }
+  
+    if ( $_.Value -eq 0 ) {
+      {{ file }} | docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir . > $file
+    }
+    else {
+      {{ file }} | docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir .generated > $file
+    }
 
 # Helper for validate recipe.
 [windows]
