@@ -78,8 +78,14 @@ create-archives *config:
   Write-Error "Not implemented."
 
 # Extract archives for configurations
+[windows]
 extract-archives *config:
   Write-Error "Not implemented."
+
+# Installs the necessary applications for development.
+[windows]
+install-applications:
+  winget import -i apps.json
 
 [windows]
 lint:
