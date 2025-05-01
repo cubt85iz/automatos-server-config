@@ -1,27 +1,3 @@
-# Helper for build recipe.
-# [windows]
-# [private]
-# build-ignition file depth:
-#     $parent = Split-Path {{ file }}
-  
-#     # Create parent directory for 
-#     if (!(Test-Path "$parent")) {
-#       New-Item -ItemType Directory -Path $parent
-#     }
-  
-#     if ( $_.Value -eq 0 ) {
-#       {{ file }} | docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir . > $file
-#     }
-#     else {
-#       {{ file }} | docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir .generated > $file
-#     }
-
-# Helper for validate recipe.
-# [windows]
-# [private]
-# validate-ignition file:
-#   Write-Error "Not implemented."
-
 # Transpiles butane configuration(s) to create ignition file(s)
 [windows]
 build:
@@ -76,14 +52,53 @@ clean:
   }
 
 # Creates archives for configurations
-# [windows]
-# create-archives *config:
-#   Write-Error "Not implemented."
+[windows]
+create-archives *config:
+  #!powershell.exe
+
+  if (!(Test-Path("config/.archives"))) {
+    New-Item -ItemType Directory config/.archives | Out-Null
+  }
+
+  $folders=@()
+  if ([string]::IsNullOrEmpty("{{ config }}")) {
+    $folders = Get-ChildItem -Directory "config"
+  }
+  else {
+    $folders = "{{ config }}" -Split ' '
+  }
+
+  $folders | Where-Object {
+    $_.Name -ne ".archives"
+  } | ForEach-Object {
+    $folderName = $_.Name
+    $archive = "config/.archives/$folderName.tar"
+    $pattern = "config/$folderName*"
+    tar cf "$archive" $pattern
+    Write-Host "Created archive: $archive"
+  }
+
 
 # Extract archives for configurations
-# [windows]
-# extract-archives *config:
-#   Write-Error "Not implemented."
+[windows]
+extract-archives *config:
+  #!powershell.exe
+
+  $archives=@()
+  if ([string]::IsNullOrEmpty("{{ config }}")) {
+    $archives = Get-ChildItem "config/.archives/*.tar"
+  }
+  else {
+    $archives = "{{ config }}" -split ' ' | ForEach-Object {
+      "config/.archives/$_.tar"
+    }
+  }
+  
+  $archives | ForEach-Object {
+    $relativePath = $_ | Resolve-Path -Relative
+    tar xf "$relativePath"
+    echo "Extracted archive: $relativePath"
+  }
 
 # Lint butane files using yamllint.
 [windows]
@@ -104,19 +119,16 @@ lint:
   }
 
 # Hosts the ignition file for deployment
-# [windows]
-# serve:
-#   #!powershell.exe
+[windows]
+serve:
+  #!powershell.exe
 
-#   if (Test-Path ".generated")
-#   {
-#     Push-Location ".generated"
-#     if (!(Test-Path "*.ign"))
-#     {
-#       just build
-#     }
-#     python -m http.server
-#   }
+  if (Test-Path ".generated")
+  {
+    Push-Location ".generated"
+
+    python -m http.server
+  }
   
 # Installs the necessary applications for development.
 [windows]
@@ -126,18 +138,19 @@ setup:
 
   winget import -i apps.json
 
-# [windows]
-# validate:
-#   #!powershell.exe
+[windows]
+validate:
+  #!powershell.exe
 
-#   # Pull the latest image
-#   docker pull -q quay.io/coreos/ignition-validate:release
+  # Pull the latest image
+  docker pull -q quay.io/coreos/ignition-validate:release
 
-#   Get-ChildItem .generated/config -Filter "*.ign" -Recurse | ForEach-Object {
+  Get-ChildItem .generated/config -Filter "*.ign" -Recurse | ForEach-Object {
 
-#     # Determine relative path to file
-#     $relativePath = $_ | Resolve-Path -Relative
+    # Determine relative path to file
+    $relativePath = $_ | Resolve-Path -Relative
 
-#     # Validate ignition file
-#     just validate-ignition $_
-#   }
+    # Validate ignition file
+    Write-Host "Validating ignition file: $relativePath"
+    Get-Content "$relativePath" | docker run --rm -i quay.io/coreos/ignition-validate:release -
+  }
