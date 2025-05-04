@@ -4,9 +4,12 @@
 build-ignition $FILE FILES_DIR='.':
   #!/usr/bin/env bash
 
-  set -euo pipefail
+  set -euox pipefail
 
   IGNITION_FILE=".generated/${FILE%.*}.ign"
+  if [ "$(basename $FILE)" == "main.bu" ]; then
+    IGNITION_FILE="${IGNITION_FILE%/*}.ign"
+  fi
   mkdir -p "$(dirname $IGNITION_FILE)"
 
   echo "Generating ignition file: $IGNITION_FILE"
@@ -38,9 +41,10 @@ build:
 
   # Build configurations
   shopt -s globstar
-  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | sort -rV)
+  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | grep -v main.bu | sort -r)
+  BUTANE_FILES+=($(ls -1 config/**/main.bu | sort -r))
   for FILE in ${BUTANE_FILES[@]}; do
-    if [ "$(dirname $FILE)" != "config" ]; then
+    if [ "$(basename $FILE)" != "main.bu" ]; then
       just build-ignition "$FILE"
     else
       just build-ignition "$FILE" ".generated"
