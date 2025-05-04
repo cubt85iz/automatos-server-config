@@ -4,7 +4,7 @@
 build-ignition $FILE FILES_DIR='.':
   #!/usr/bin/env bash
 
-  set -euox pipefail
+  set -euo pipefail
 
   IGNITION_FILE=".generated/${FILE%.*}.ign"
   if [ "$(basename $FILE)" == "main.bu" ]; then
