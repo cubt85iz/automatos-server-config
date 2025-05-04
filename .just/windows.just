@@ -9,6 +9,8 @@ build:
   # Search for butane files
   $files = @{}
   Get-ChildItem config -Filter "*.bu" -Recurse | ForEach-Object {
+
+    $basename = $_.BaseName
   
     # Determine relative path to file
     $relativePath =  ($_ | Resolve-Path -Relative) -replace '\\', '/'
@@ -19,11 +21,16 @@ build:
     }).Count - 2
   
     # Add values to dictionary
-    $files[$relativePath] = $depth
+    if ($basename -ne "main") {
+      $files[$relativePath] = $depth
+    }
+    else {
+      $files[$relativePath] = 0
+    }
   }
   
   # Sort files in descending order by value (depth); ascending order by key (path)
-  $sortedFiles = $files.GetEnumerator() | Sort-Object @{Expression="Value"; Ascending=$false}, Name
+  $sortedFiles = $files.GetEnumerator() | Sort-Object @{Expression="Value"; Ascending=$false}, @{Expression="Name"; Ascending=$false}
   
   # Iterate over sorted files and generate ignition files.
   $sortedFiles | ForEach-Object {
@@ -39,6 +46,7 @@ build:
       docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir . $_.Key > $file
     }
     else {
+      $file = ($parent + ".ign") -replace "\\", "/"
       docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir .generated $_.Key > $file
     }
   }
