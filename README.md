@@ -19,5 +19,5 @@ This project provides recipes for building Ignition (*.ign) files from Butane(*.
 2. Execute `sudo coreos-installer install --insecure-ignition --ignition-url http://<web-server-ip>:8000/config/<server>.ign <disk-device>`. Example: `sudo coreos-installer install --insecure-ignition --ignition-url http://192.168.1.100:8000/config/example-server.ign /dev/nvme0n1`.
 2. Execute `poweroff`, unplug the USB drive, and power on the machine again. Follow the instructions for [automatos-server](https://github.com/cubt85iz/automatos-server.git) to rebase to new image.
 
-> [!INFORMATION]
+> [!NOTE]
 > For Windows development, execute the command `just setup` from an administrative Powershell window to install required dependencies.
