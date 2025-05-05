@@ -1,7 +1,6 @@
 .generated/**
 
 *.bu
-!config/example-server.bu
 !config/example-server/*.bu
 
 *.ign
