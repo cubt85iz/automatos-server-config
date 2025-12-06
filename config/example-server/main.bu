@@ -23,7 +23,8 @@ storage:
     - path: /etc/hostname
       overwrite: true
       contents:
-        inline: server.example.com
+        inline: |-
+          server.example.com
       user:
         name: root
       group:

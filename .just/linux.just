@@ -98,6 +98,107 @@ create-archives *config:
     echo "Created archive: $ARCHIVE"
   done
 
+[linux]
+diff server:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Track overall status
+  EQUAL="true"
+
+  # Enable globstar to find files
+  shopt -s globstar
+
+  # Examine each configuration file.
+  for FILE in config/{{ server }}/**/*.bu; do
+    # Store all paths found in the current configuration file.
+    readarray -t CONFIGFILES < <(yq -r '.storage.files[].path' "$FILE")
+
+    # Examine each file found in the current configuration file.
+    for CONFIGFILE in ${CONFIGFILES[@]}; do
+      # Calculate checksum of file contents listed in the configuration file.
+      CONTENT=$(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .contents.inline // \"\"" "$FILE")
+
+      # A file can be overwritten or appended. If `contents` have been provided then perform an equality
+      # comparison of the contents of the file against the contents listed in the configuration file.
+      if [ -n "$CONTENT" ]; then
+        CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
+
+        # Check for existence of the file on the server. If necessary, use `sudo`.
+        if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
+
+          # Calculate checksum of server content
+          if SERVER_CSUM=$((ssh {{ server }} "sha256sum '$CONFIGFILE' 2>/dev/null || \
+            sudo sha256sum '$CONFIGFILE'") | cut -d' ' -f1); then
+
+            # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
+            if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
+              echo "Content differs for file: $CONFIGFILE"
+              if ! DIFFERENCE=$(ssh {{ server }} "diff <(echo \"$CONTENT\") \"$CONFIGFILE\""); then
+                echo "$DIFFERENCE"
+                echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ({{ server }})"
+                echo ""
+                EQUAL="false"
+              fi
+            fi
+          else
+            echo "Unable to compute checksum for file: $CONFIGFILE"
+            EQUAL="false"
+          fi
+        else
+          echo "Unable to locate file on server: $CONFIGFILE"
+          EQUAL="false"
+        fi
+
+      # A file can be overwritten or appended. If `append` has been provided then determine if the
+      # server file contains the contents listed in the configuration file.
+      else
+        # Unlike `contents`, `append` is an array. Store content that should have been appended to the file.
+        readarray -t APPENDEDCONTENT < <(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .append[].inline" "$FILE")
+
+        # If there is content to append to the file, then proceed.
+        if (( ${#APPENDEDCONTENT[@]} > 0 )); then
+
+          # Check for existence of the file on the server. If necessary, use `sudo`.
+          if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
+
+            # Iterate over appended content and determine if the server file contains it. If the content
+            # is missing, then add it to the `MISSING_CONTENT` array for displaying later.
+            MISSING_CONTENT=()
+            for CONTENT in "${APPENDEDCONTENT[@]}"; do
+              if ! ssh {{ server }} "grep -q \"$CONTENT\" \"$CONFIGFILE\""; then
+                MISSING_CONTENT+=("$CONTENT")
+              fi
+            done
+
+            # Diplay content missing from server file.
+            if (( ${#MISSING_CONTENT[@]} > 0 )); then
+              echo "Content missing from file: $CONFIGFILE"
+              echo "Content:"
+              echo "${MISSING_CONTENT[@]}"
+              EQUAL="false"
+            fi
+          else
+            echo "Unable to locate file on server: $CONFIGFILE"
+            EQUAL="false"
+          fi
+        else
+          echo "Unable to process file: $CONFIGFILE"
+        fi
+      fi
+    done
+  done
+
+  # Disable globstar
+  shopt -u globstar
+
+  # Exit unsuccessfully if not equal
+  if [ "$EQUAL" != "true" ]; then
+    echo "Configuration drift has been detected."
+    exit 1
+  fi
+
 # Download latest stable Fedora CoreOS ISO
 [linux]
 download-iso:
