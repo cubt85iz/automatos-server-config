@@ -160,7 +160,7 @@ diff server:
       # A file can be overwritten or appended. If `contents` have been provided then perform an equality
       # comparison of the contents of the file against the contents listed in the configuration file.
       if [ -n "$CONTENT" ]; then
-        CONTENT_CSUM=$(sha256sum < <(echo -n "$CONTENT") | cut -d' ' -f1)
+        CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
 
         # Check for existence of the file on the server. If necessary, use `sudo`.
         if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
