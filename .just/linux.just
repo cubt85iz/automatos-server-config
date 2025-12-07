@@ -22,6 +22,38 @@ build-ignition $FILE FILES_DIR='.':
   podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
     --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
 
+[linux]
+[private]
+is-file-ignored $FILE:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  while IFS= read -r line; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^# ]] && continue
+    [ -z "$line" ] && continue
+
+    # Remove leading/trailing whitespace
+    line=$(echo "$line" | tr -d '[:space:]')
+
+    # Skip exception patterns
+    if [[ "$line" =~ ^! ]]; then
+        continue
+    fi
+
+    # Convert pattern to regex
+    # Handles: * (any number of characters), ? (single character), [a-z] (character classes)
+    regex=$(echo "$line" | sed -E 's/\*\/\./\.\*\/\./g; s/\*\.*/\.\*\.txt/g; s/\?/./g; s/[\[\/\]]/\\&/g')
+
+    # Check if file matches pattern (case-sensitive)
+    if [[ "$FILE" =~ $regex ]]; then
+        exit 0
+    fi
+  done < ".diffignore"
+
+  exit 1
+
 # Helper for validate recipe.
 [linux]
 [private]
@@ -112,18 +144,23 @@ diff server:
 
   # Examine each configuration file.
   for FILE in config/{{ server }}/**/*.bu; do
+
     # Store all paths found in the current configuration file.
     readarray -t CONFIGFILES < <(yq -r '.storage.files[].path' "$FILE")
 
     # Examine each file found in the current configuration file.
     for CONFIGFILE in ${CONFIGFILES[@]}; do
+
+      # Continue if file is ignored in .diffignore
+      ! just -q is-file-ignored "$CONFIGFILE" || continue
+      
       # Calculate checksum of file contents listed in the configuration file.
       CONTENT=$(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .contents.inline // \"\"" "$FILE")
 
       # A file can be overwritten or appended. If `contents` have been provided then perform an equality
       # comparison of the contents of the file against the contents listed in the configuration file.
       if [ -n "$CONTENT" ]; then
-        CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
+        CONTENT_CSUM=$(sha256sum < <(echo -n "$CONTENT") | cut -d' ' -f1)
 
         # Check for existence of the file on the server. If necessary, use `sudo`.
         if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
@@ -135,7 +172,7 @@ diff server:
             # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
             if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
               echo "Content differs for file: $CONFIGFILE"
-              if ! DIFFERENCE=$(ssh {{ server }} "diff <(echo \"$CONTENT\") \"$CONFIGFILE\""); then
+              if ! DIFFERENCE=$(ssh {{ server }} "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
                 echo "$DIFFERENCE"
                 echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ({{ server }})"
                 echo ""
