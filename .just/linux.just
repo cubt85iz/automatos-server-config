@@ -24,6 +24,89 @@ build-ignition $FILE FILES_DIR='.':
 
 [linux]
 [private]
+is-content-appended $SERVER $FILE $CONFIGFILE:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Unlike `contents`, `append` is an array. Store content that should have been appended to the file.
+  readarray -t APPENDEDCONTENT < <(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .append[].inline" "$FILE")
+
+  # If there is content to append to the file, then proceed.
+  if (( ${#APPENDEDCONTENT[@]} > 0 )); then
+    # Check for existence of the file on the server. If necessary, use `sudo`.
+    if ssh $SERVER "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
+
+      # Iterate over appended content and determine if the server file contains it. If the content
+      # is missing, then add it to the `MISSING_CONTENT` array for displaying later.
+      MISSING_CONTENT=()
+      for CONTENT in "${APPENDEDCONTENT[@]}"; do
+        if ! ssh $SERVER "grep -q \"$CONTENT\" \"$CONFIGFILE\""; then
+          MISSING_CONTENT+=("$CONTENT")
+        fi
+      done
+
+      # Diplay content missing from server file.
+      if (( ${#MISSING_CONTENT[@]} > 0 )); then
+        echo "Content missing from file: $CONFIGFILE"
+        echo "Content:"
+        echo "${MISSING_CONTENT[@]}"
+        exit 1
+      fi
+    else
+      echo "Unable to locate file on server: $CONFIGFILE"
+      exit 1
+    fi
+  fi
+
+  exit 0
+
+[linux]
+[private]
+is-content-overwritten $SERVER $FILE $CONFIGFILE:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  # Calculate checksum of file contents listed in the configuration file.
+  CONTENT=$(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .contents.inline // \"\"" "$FILE")
+
+  # A file can be overwritten or appended. If `contents` have been provided then perform an equality
+  # comparison of the contents of the file against the contents listed in the configuration file.
+  if [ -n "$CONTENT" ]; then
+    CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
+
+    # Check for existence of the file on the server. If necessary, use `sudo`.
+    if ssh $SERVER "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
+
+      # Calculate checksum of server content
+      if SERVER_CSUM=$((ssh $SERVER "sha256sum '$CONFIGFILE' 2>/dev/null || \
+        sudo sha256sum '$CONFIGFILE'") | cut -d' ' -f1); then
+
+        # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
+        if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
+          echo "Content differs for file: $CONFIGFILE"
+          if ! DIFFERENCE=$(ssh $SERVER "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
+            echo "$DIFFERENCE"
+            echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ($SERVER)"
+            echo ""
+            exit 1
+          fi
+        fi
+      else
+        echo "Unable to compute checksum for file: $CONFIGFILE"
+        exit 1
+      fi
+    else
+      echo "Unable to locate file on server: $CONFIGFILE"
+      exit 1
+    fi
+  fi
+
+  exit 0
+
+[linux]
+[private]
 is-file-ignored $FILE:
   #!/usr/bin/env bash
 
@@ -153,76 +236,18 @@ diff server:
 
       # Continue if file is ignored in .diffignore
       ! just -q is-file-ignored "$CONFIGFILE" || continue
-      
-      # Calculate checksum of file contents listed in the configuration file.
-      CONTENT=$(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .contents.inline // \"\"" "$FILE")
 
-      # A file can be overwritten or appended. If `contents` have been provided then perform an equality
-      # comparison of the contents of the file against the contents listed in the configuration file.
-      if [ -n "$CONTENT" ]; then
-        CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
+      # Determine what kind of operation to perform. Overwrite the contents of the file or append to it.
+      OVERWRITE=$(yq eval "(.storage.files[] | select(.path == \"$CONFIGFILE\") | has(\"contents\"))" "$FILE")
+      APPEND=$(yq eval "(.storage.files[] | select(.path == \"$CONFIGFILE\") | has(\"append\"))" "$FILE")
 
-        # Check for existence of the file on the server. If necessary, use `sudo`.
-        if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
-
-          # Calculate checksum of server content
-          if SERVER_CSUM=$((ssh {{ server }} "sha256sum '$CONFIGFILE' 2>/dev/null || \
-            sudo sha256sum '$CONFIGFILE'") | cut -d' ' -f1); then
-
-            # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
-            if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
-              echo "Content differs for file: $CONFIGFILE"
-              if ! DIFFERENCE=$(ssh {{ server }} "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
-                echo "$DIFFERENCE"
-                echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ({{ server }})"
-                echo ""
-                EQUAL="false"
-              fi
-            fi
-          else
-            echo "Unable to compute checksum for file: $CONFIGFILE"
-            EQUAL="false"
-          fi
-        else
-          echo "Unable to locate file on server: $CONFIGFILE"
-          EQUAL="false"
-        fi
-
-      # A file can be overwritten or appended. If `append` has been provided then determine if the
-      # server file contains the contents listed in the configuration file.
+      if [ "$OVERWRITE" == "true" ]; then
+        just -q is-content-overwritten {{ server }} "$FILE" "$CONFIGFILE" || EQUAL="false"
+      elif [ "$APPEND" == "true" ]; then
+        just -q is-content-appended {{ server }} "$FILE" "$CONFIGFILE" || EQUAL="false"
       else
-        # Unlike `contents`, `append` is an array. Store content that should have been appended to the file.
-        readarray -t APPENDEDCONTENT < <(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .append[].inline" "$FILE")
-
-        # If there is content to append to the file, then proceed.
-        if (( ${#APPENDEDCONTENT[@]} > 0 )); then
-
-          # Check for existence of the file on the server. If necessary, use `sudo`.
-          if ssh {{ server }} "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
-
-            # Iterate over appended content and determine if the server file contains it. If the content
-            # is missing, then add it to the `MISSING_CONTENT` array for displaying later.
-            MISSING_CONTENT=()
-            for CONTENT in "${APPENDEDCONTENT[@]}"; do
-              if ! ssh {{ server }} "grep -q \"$CONTENT\" \"$CONFIGFILE\""; then
-                MISSING_CONTENT+=("$CONTENT")
-              fi
-            done
-
-            # Diplay content missing from server file.
-            if (( ${#MISSING_CONTENT[@]} > 0 )); then
-              echo "Content missing from file: $CONFIGFILE"
-              echo "Content:"
-              echo "${MISSING_CONTENT[@]}"
-              EQUAL="false"
-            fi
-          else
-            echo "Unable to locate file on server: $CONFIGFILE"
-            EQUAL="false"
-          fi
-        else
-          echo "Unable to process file: $CONFIGFILE"
-        fi
+        echo "Unable to process file: $CONFIGFILE"
+        EQUAL="false"
       fi
     done
   done
@@ -263,6 +288,16 @@ extract-archives *config:
     tar xf "$ARCHIVE"
     echo "Extracted archive: $ARCHIVE"
   done
+
+# Output compatible Butane configuration for each specified file
+[linux]
+generate *files:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  echo "NOT IMPLEMENTED"
+  exit 1
 
 # [REFACTOR] Lint butane files using own container.
 [linux]
