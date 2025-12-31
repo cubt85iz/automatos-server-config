@@ -1,6 +1,0 @@
-[Unit]
-Description=Target for container healthchecks
-Wants={% for container in containers if container.monitor_url is defined %}healthcheck-container@{{ container.name }}.timer {% endfor %}
-
-[Install]
-WantedBy=multi-user.target

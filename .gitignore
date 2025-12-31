@@ -1,7 +1,10 @@
 .generated/**
 
 *.bu
+!config/example-server/*.bu
+
 *.ign
 *.iso
 *.iso.sig
+*.tar
 secrets*.yml

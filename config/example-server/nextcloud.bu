@@ -1,0 +1,81 @@
+---
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    # Container Variables
+    - path: /etc/containers/systemd/nextcloud.container.d/10-nextcloud-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          Environment=TZ=Etc/UTC
+
+          [Service]
+          Environment=CONTAINER_PATH=/my/containers/nextcloud
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+    # Backup Variables
+    - path: /etc/systemd/system/backup@nextcloud.service.d/00-backup-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Service]
+          Environment=DATASET=zfs/nextcloud
+          Environment=BACKUP_MONITOR_URL=https://hc-ping.com/<my-id>
+          Environment=BACKUP_PATH=/var/zfs/backups/nextcloud
+          Environment=BACKUP_REMOTES=<my-remote>
+          Environment=KEEP_DAILY=7
+          Environment=KEEP_WEEKLY=4
+          Environment=KEEP_MONTHLY=6
+          Environment=KEEP_YEARLY=0
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+    # Healthcheck Variables
+    - path: /etc/systemd/system/healthcheck-container@nextcloud.service.d/00-healthcheck-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Service]
+          Environment=MONITOR_URL=https://hc-ping.com/<my-id>
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+  links:
+    - path: /etc/systemd/system/timer.target.wants/nextcloud-background.timer
+      target: /etc/systemd/system/nextcloud-background.timer
+
+systemd:
+  units:
+    - name: nextcloud-background.service
+      contents: |
+        [Unit]
+        Description=Service for background jobs for Nextcloud container
+
+        [Service]
+        ExecCondition=/bin/sh -c "/usr/bin/systemctl is-active nextcloud"
+        ExecStart=/usr/bin/podman exec -it -u www-data nextcloud php /var/www/html/cron.php
+
+    - name: nextcloud-background.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Runs background jobs for Nextcloud container
+
+        [Timer]
+        OnCalendar=*:0/5
+
+        [Install]
+        WantedBy=timers.target

@@ -1,0 +1,60 @@
+---
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    # Container Variables
+    - path: /etc/containers/systemd/kometa.container.d/10-kometa-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          Environment=KOMETA_RUN=true
+          Environment=TZ=Etc/UTC
+
+          [Service]
+          Environment=CONTAINER_PATH=/my/containers/kometa
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+    # Backup Variables
+    - path: /etc/systemd/system/backup@kometa.service.d/00-backup-variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Service]
+          Environment=DATASET=zfs/kometa
+          Environment=BACKUP_MONITOR_URL=https://hc-ping.com/<my-id>
+          Environment=BACKUP_PATH=/var/zfs/backups/kometa
+          Environment=BACKUP_REMOTES=<my-remote>
+          Environment=KEEP_DAILY=7
+          Environment=KEEP_WEEKLY=4
+          Environment=KEEP_MONTHLY=6
+          Environment=KEEP_YEARLY=0
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+  links:
+    - path: /etc/systemd/system/timer.target.wants/kometa.timer
+      target: /etc/systemd/system/kometa.timer
+
+systemd:
+  units:
+    - name: kometa.timer
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Periodically run Kometa to manage collection in Plex
+
+        [Timer]
+        OnBootSec=15min
+        OnUnitInactiveSec=2h
+
+        [Install]
+        WantedBy=timers.target
