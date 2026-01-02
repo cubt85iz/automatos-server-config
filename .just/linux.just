@@ -225,6 +225,7 @@ create-archives *config:
   set -euo pipefail
 
   # Create directory for archives
+  pushd "{{ justfile_directory() }}" &>/dev/null
   mkdir -p config/.archives
 
   FOLDERS=()
@@ -247,6 +248,8 @@ create-archives *config:
     tar cf "$ARCHIVE" $PATTERN
     echo "Created archive: $ARCHIVE"
   done
+
+  popd &>/dev/null
 
 [linux]
 diff server:
