@@ -11,7 +11,7 @@ build-ignition $FILE FILES_DIR='.':
   # Path should match the Butane file unless it is `main.bu`. In that case, the
   # Ignition file should be named after the parent folder name which represents
   # the server.
-  IGNITION_FILE=".generated/${FILE%.*}.ign"
+  IGNITION_FILE="{{ justfile_directory() }}/.generated/${FILE%.*}.ign"
   if [ "$(basename $FILE)" == "main.bu" ]; then
     IGNITION_FILE="${IGNITION_FILE%/*}.ign"
   fi
@@ -19,7 +19,7 @@ build-ignition $FILE FILES_DIR='.':
 
   # Generate Ignition file.
   echo "Generating ignition file: $IGNITION_FILE"
-  podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
+  podman run --rm -i -v "{{ justfile_directory() }}":/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
     --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
 
 [linux]
@@ -149,10 +149,10 @@ is-ubuntu:
   fi
 
   if [[ "$ID" == "ubuntu" || "$NAME" =~ [Uu]buntu ]]; then
-    return 0
+    exit 0
   fi
 
-  return 1
+  exit 1
 
 [linux]
 [private]
@@ -163,14 +163,14 @@ is-wsl-environment:
 
   if grep -qi "microsoft" /proc/version 2>/dev/null || \
     grep -qi "microsoft" /proc/sys/kernel/osrelease 2>/dev/null; then
-    return 0
+    exit 0
   fi
 
   if [ -n "$WSL_DISTRO_NAME" ]; then
-    return 0
+    exit 0
   fi
 
-  return 1
+  exit 1
 
 # Helper for validate recipe.
 [linux]
@@ -320,7 +320,7 @@ extract-archives *config:
 
   # Iterate over array and extract archives.
   for ARCHIVE in "${ARCHIVES[@]}"; do
-    tar xf "$ARCHIVE"
+    tar xf "$ARCHIVE" -C "{{ justfile_directory() }}"
     echo "Extracted archive: $ARCHIVE"
   done
 
@@ -342,13 +342,28 @@ lint:
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
   set -euo pipefail
 
-  podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
+  # Determine if yamllint is installed locally.
+  HAS_YAMLLINT=1
+  if which yamllint &>/dev/null; then
+    HAS_YAMLLINT=0
+  fi
+
+  # Pull the yamllint docker image if yamllint isn't installed.
+  if [ $HAS_YAMLLINT -ne 0 ]; then
+    podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
+  fi
 
   # Find all Butane files and lint them as if they were YAML files.
   shopt -s globstar
   for FILE in config/**/*.bu; do
     echo "Linting butane file: $FILE"
-    podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
+    if [ $HAS_YAMLLINT -ne 0 ]; then
+      podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
+    else
+      pushd "{{ justfile_directory() }}" &>/dev/null
+      yamllint "$FILE"
+      popd &>/dev/null
+    fi
   done
 
 # Hosts the ignition files for deployment
