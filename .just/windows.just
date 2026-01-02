@@ -41,6 +41,8 @@ build:
     if (!(Test-Path "$parent")) {
       New-Item -ItemType Directory -Path $parent | Out-Null
     }
+
+    Write-Host "Generating ignition file: $file"
   
     if ( $_.Value -ne 0 ) {
       docker run --rm -i -v .:/files --workdir /files quay.io/coreos/butane:release --pretty --files-dir . $_.Key > $file
