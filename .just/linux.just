@@ -137,6 +137,41 @@ is-file-ignored $FILE:
 
   exit 1
 
+[linux]
+[private]
+is-ubuntu:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  if [ -s "/etc/os-release" ]; then
+    . /etc/os-release
+  fi
+
+  if [[ "$ID" == "ubuntu" || "$NAME" =~ [Uu]buntu ]]; then
+    return 0
+  fi
+
+  return 1
+
+[linux]
+[private]
+is-wsl-environment:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  if grep -qi "microsoft" /proc/version 2>/dev/null || \
+    grep -qi "microsoft" /proc/sys/kernel/osrelease 2>/dev/null; then
+    return 0
+  fi
+
+  if [ -n "$WSL_DISTRO_NAME" ]; then
+    return 0
+  fi
+
+  return 1
+
 # Helper for validate recipe.
 [linux]
 [private]
@@ -276,7 +311,7 @@ extract-archives *config:
 
   ARCHIVES=()
   if [ -z "{{ config }}" ]; then
-    readarray -t ARCHIVES < <(ls -1 config/.archives/*.tar)
+    readarray -t ARCHIVES < <(ls -1 {{ justfile_directory() }}/config/.archives/*.tar)
   else
     read -a ARCHIVES <<< "{{ config }}"
     ARCHIVES=(${ARCHIVES[@]/#/config\/.archives\/})
@@ -327,6 +362,38 @@ serve:
   # Spin up a Python HTTP server to serve the Ignition files.
   pushd .generated &> /dev/null
   python3 -m http.server
+
+# Configures WSL2 environment for development.
+[linux]
+setup:
+  #!/usr/bin/env bash
+
+  set -euo pipefail
+
+  if just is-wsl-environment && just is-ubuntu; then
+    # Update package cache
+    sudo apt update
+
+    # Update existing packages
+    sudo apt upgrade -y
+
+    # Install podman packages if needed.
+    if ! which podman &>/dev/null; then
+      sudo apt install -y podman podman-docker
+    else
+      echo "INFO: Located podman. Skipping installation..."
+    fi
+
+    # Install python packages if needed.
+    if ! which python3 &>/dev/null; then
+      sudo apt install -y python3 python3-pip
+    else
+      echo "INFO: Located python. Skipping installation..."
+    fi
+  else
+    echo "ERROR: The setup recipe only works for WSL2-based Ubuntu distributions."
+    exit 1
+  fi
 
 # Validate generated ignition files
 [linux]
