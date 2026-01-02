@@ -348,7 +348,7 @@ lint:
     HAS_YAMLLINT=0
   fi
 
-  # Pull the yamllint docker image if yamllint isn't installed.
+  # Pull the yamllint docker image if yamllint is not installed.
   if [ $HAS_YAMLLINT -ne 0 ]; then
     podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
   fi
@@ -375,7 +375,7 @@ serve:
   set -euo pipefail
 
   # Spin up a Python HTTP server to serve the Ignition files.
-  pushd .generated &> /dev/null
+  pushd "{{ justfile_directory() }}/.generated" &> /dev/null
   python3 -m http.server
 
 # Configures WSL2 environment for development.
