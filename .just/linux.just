@@ -422,9 +422,9 @@ validate:
   podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
 
   # Validate all generated Ignition files.
-  if [ -d ".generated/config" ]; then
+  if [ -d "{{ justfile_directory() }}/.generated/config" ]; then
     shopt -s globstar
-    for FILE in .generated/**/*.ign; do
+    for FILE in {{ justfile_directory() }}/.generated/**/*.ign; do
       just validate-ignition "$FILE"
     done
   else
