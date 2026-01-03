@@ -198,7 +198,7 @@ build:
   #!/usr/bin/env bash
 
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
-  set -exuo pipefail
+  set -euo pipefail
 
   # Enable advanced globbing
   shopt -s globstar
