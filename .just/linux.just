@@ -1,17 +1,17 @@
 # Helper for build recipe.
 [linux]
+[no-cd]
 [private]
 build-ignition $FILE FILES_DIR='.':
   #!/usr/bin/env bash
 
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
   set -euo pipefail
 
   # Set up file path for Ignition file.
   # Path should match the Butane file unless it is `main.bu`. In that case, the
   # Ignition file should be named after the parent folder name which represents
   # the server.
-  IGNITION_FILE="{{ justfile_directory() }}/.generated/${FILE%.*}.ign"
+  IGNITION_FILE=".generated/${FILE%.*}.ign"
   if [ "$(basename $FILE)" == "main.bu" ]; then
     IGNITION_FILE="${IGNITION_FILE%/*}.ign"
   fi
@@ -19,10 +19,11 @@ build-ignition $FILE FILES_DIR='.':
 
   # Generate Ignition file.
   echo "Generating ignition file: $IGNITION_FILE"
-  podman run --rm -i -v "{{ justfile_directory() }}":/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
+  podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
     --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
 
 [linux]
+[no-cd]
 [private]
 is-content-appended $SERVER $FILE $CONFIGFILE:
   #!/usr/bin/env bash
@@ -62,6 +63,7 @@ is-content-appended $SERVER $FILE $CONFIGFILE:
   exit 0
 
 [linux]
+[no-cd]
 [private]
 is-content-overwritten $SERVER $FILE $CONFIGFILE:
   #!/usr/bin/env bash
@@ -106,6 +108,7 @@ is-content-overwritten $SERVER $FILE $CONFIGFILE:
   exit 0
 
 [linux]
+[no-cd]
 [private]
 is-file-ignored $FILE:
   #!/usr/bin/env bash
@@ -138,6 +141,7 @@ is-file-ignored $FILE:
   exit 1
 
 [linux]
+[no-cd]
 [private]
 is-ubuntu:
   #!/usr/bin/env bash
@@ -155,6 +159,7 @@ is-ubuntu:
   exit 1
 
 [linux]
+[no-cd]
 [private]
 is-wsl-environment:
   #!/usr/bin/env bash
@@ -174,6 +179,7 @@ is-wsl-environment:
 
 # Helper for validate recipe.
 [linux]
+[no-cd]
 [private]
 validate-ignition $FILE:
   #!/usr/bin/env bash
@@ -187,6 +193,7 @@ validate-ignition $FILE:
 
 # Transpiles butane configuration(s) to create ignition file(s)
 [linux]
+[no-cd]
 build:
   #!/usr/bin/env bash
 
@@ -213,11 +220,13 @@ build:
 
 # Remove all rendered ignition files.
 [linux]
+[no-cd]
 clean:
   @rm -rf .generated
 
 # Creates archives for configurations
 [linux]
+[no-cd]
 create-archives *config:
   #!/usr/bin/env bash
 
@@ -225,7 +234,6 @@ create-archives *config:
   set -euo pipefail
 
   # Create directory for archives
-  pushd "{{ justfile_directory() }}" &>/dev/null
   mkdir -p config/.archives
 
   FOLDERS=()
@@ -249,9 +257,8 @@ create-archives *config:
     echo "Created archive: $ARCHIVE"
   done
 
-  popd &>/dev/null
-
 [linux]
+[no-cd]
 diff server:
   #!/usr/bin/env bash
 
@@ -301,11 +308,13 @@ diff server:
 
 # Download latest stable Fedora CoreOS ISO
 [linux]
+[no-cd]
 download-iso:
-  @podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v $PWD:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
+  @podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v .:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
 
 # Extract archives for configurations
 [linux]
+[no-cd]
 extract-archives *config:
   #!/usr/bin/env bash
 
@@ -327,18 +336,9 @@ extract-archives *config:
     echo "Extracted archive: $ARCHIVE"
   done
 
-# Output compatible Butane configuration for each specified file
+# Lints butane file using yamllint.
 [linux]
-generate *files:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  echo "NOT IMPLEMENTED"
-  exit 1
-
-# [REFACTOR] Lint butane files using own container.
-[linux]
+[no-cd]
 lint:
   #!/usr/bin/env bash
 
@@ -363,14 +363,13 @@ lint:
     if [ $HAS_YAMLLINT -ne 0 ]; then
       podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
     else
-      pushd "{{ justfile_directory() }}" &>/dev/null
       yamllint "$FILE"
-      popd &>/dev/null
     fi
   done
 
 # Hosts the ignition files for deployment
 [linux]
+[no-cd]
 serve:
   #!/usr/bin/env bash
 
@@ -378,11 +377,12 @@ serve:
   set -euo pipefail
 
   # Spin up a Python HTTP server to serve the Ignition files.
-  pushd "{{ justfile_directory() }}/.generated" &> /dev/null
+  pushd .generated &> /dev/null
   python3 -m http.server
 
 # Configures WSL2 environment for development.
 [linux]
+[no-cd]
 setup:
   #!/usr/bin/env bash
 
@@ -415,6 +415,7 @@ setup:
 
 # Validate generated ignition files
 [linux]
+[no-cd]
 validate:
   #!/usr/bin/env bash
 
@@ -425,9 +426,9 @@ validate:
   podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
 
   # Validate all generated Ignition files.
-  if [ -d "{{ justfile_directory() }}/.generated/config" ]; then
+  if [ -d ".generated/config" ]; then
     shopt -s globstar
-    for FILE in {{ justfile_directory() }}/.generated/**/*.ign; do
+    for FILE in .generated/**/*.ign; do
       just validate-ignition "$FILE"
     done
   else
