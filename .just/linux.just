@@ -7,6 +7,12 @@ build-ignition $FILE FILES_DIR='.':
 
   set -euo pipefail
 
+  # Determine if yamllint is installed locally.
+  HAS_BUTANE=1
+  if which butane &>/dev/null; then
+    HAS_BUTANE=0
+  fi
+
   # Set up file path for Ignition file.
   # Path should match the Butane file unless it is `main.bu`. In that case, the
   # Ignition file should be named after the parent folder name which represents
@@ -19,8 +25,12 @@ build-ignition $FILE FILES_DIR='.':
 
   # Generate Ignition file.
   echo "Generating ignition file: $IGNITION_FILE"
-  podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
-    --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+  if [ $HAS_BUTANE -eq 0 ]; then
+    butane --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+  else
+    podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
+      --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+  fi
 
 [linux]
 [no-cd]
@@ -432,6 +442,16 @@ setup:
 
     # Update existing packages
     sudo apt upgrade -y
+
+    # Install butane package if needed.
+    if ! which butane &>/dev/null; then
+      curl -sSL https://github.com/coreos/butane/releases/latest/download/butane-x86_64-unknown-linux-gnu -o butane
+      sudo mkdir -p /usr/local/bin
+      sudo mv butane /usr/local/bin/
+      sudo chmod +x /usr/local/bin/butane
+    else
+      echo "INFO: Located butane. Skipping installation..."
+    fi
 
     # Install yamllint package if needed.
     if ! which yamllint &>/dev/null; then
