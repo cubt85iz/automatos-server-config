@@ -395,6 +395,13 @@ setup:
     # Update existing packages
     sudo apt upgrade -y
 
+    # Install yamllint package if needed.
+    if ! which yamllint &>/dev/null; then
+      sudo apt install -y yamllint
+    else
+      echo "INFO: Located yamllint. Skipping installation..."
+    fi
+
     # Install podman packages if needed.
     if ! which podman &>/dev/null; then
       sudo apt install -y podman podman-docker
