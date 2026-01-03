@@ -200,22 +200,60 @@ build:
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
   set -euo pipefail
 
+  # Enable advanced globbing
+  shopt -s globstar
+
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/butane:release > /dev/null
 
-  # Find butane files and sort them in reverse order. The `main.bu` file is excluded
-  # in the first search to ensure it is added last for each server.
-  shopt -s globstar
-  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | grep -v main.bu | sort -r)
-  BUTANE_FILES+=($(ls -1 config/**/main.bu | sort -r))
+  # Setup jobs
+  JOBS=()
+  MAX_JOBS=8
+  JOBS_STATUS=0
 
-  # Transpile each Butane file and create an Ignition file.
+  # Find & transpile non-primary butane files.
+  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | grep -v main.bu | sort -r)
   for FILE in ${BUTANE_FILES[@]}; do
-    if [ "$(basename $FILE)" != "main.bu" ]; then
-      just build-ignition "$FILE"
-    else
-      just build-ignition "$FILE" ".generated"
-    fi
+    # Do not exceed max jobs. Wait for one to complete before proceeding.
+    while (( ${#JOBS[@]} >= MAX_JOBS )); do
+      for INDEX in ${!JOBS[@]}; do
+        if wait "${JOBS[$INDEX]}"; then
+          unset 'JOBS[INDEX]'
+        else
+          JOBS_STATUS=1
+        fi
+      done
+
+      # Compact the array and sleep briefly.
+      JOBS=("${JOBS[@]}")
+      sleep 0.1
+    done
+  
+    just build-ignition "$FILE" &
+    JOBS+=("$!")
+  done
+
+  # Wait for any remaining jobs to complete before proceeding.
+  while (( ${#JOBS[@]} > 0 )); do
+    for INDEX in ${!JOBS[@]}; do
+      if wait "${JOBS[$INDEX]}"; then
+        unset 'JOBS[INDEX]'
+      else
+        JOBS_STATUS=1
+      fi
+    done
+  done
+
+  # Exit if an error occurred while processing non-primary butane files.
+  if [ $JOBS_STATUS -ne 0 ]; then
+    echo "ERROR: An error occurred while building ignition files."
+    exit $JOBS_STATUS
+  fi
+
+  # Find & transpile primary butane files for server configurations.
+  readarray -t BUTANE_FILES < <(ls -1 config/**/main.bu | sort -r)
+  for FILE in ${BUTANE_FILES[@]}; do
+    just build-ignition "$FILE" ".generated"
   done
 
 # Remove all rendered ignition files.
@@ -356,16 +394,16 @@ lint:
     podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
   fi
 
-  # Find all Butane files and lint them as if they were YAML files.
   shopt -s globstar
-  for FILE in config/**/*.bu; do
-    echo "Linting butane file: $FILE"
-    if [ $HAS_YAMLLINT -ne 0 ]; then
-      podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "$FILE"
-    else
-      yamllint "$FILE"
-    fi
-  done
+  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | sort -r)
+
+  if [ $HAS_YAMLLINT -ne 0 ]; then
+    podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "${BUTANE_FILES[@]}"
+  else
+    yamllint "${BUTANE_FILES[@]}"
+  fi
+
+  echo "All butane files passed linting checks."
 
 # Hosts the ignition files for deployment
 [linux]
@@ -432,11 +470,15 @@ validate:
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
 
-  # Validate all generated Ignition files.
+  # Validate the merged Ignition files.
   if [ -d ".generated/config" ]; then
-    shopt -s globstar
-    for FILE in .generated/**/*.ign; do
-      just validate-ignition "$FILE"
+    for FILE in .generated/config/*.ign; do
+      if [ -s "$FILE" ]; then
+        just validate-ignition "$FILE"
+      else
+        echo "ERROR: The merged ignition file ($FILE) is empty or does not exist."
+        exit 1
+      fi
     done
   else
     echo "ERROR: Unable to locate ignition files directory."
