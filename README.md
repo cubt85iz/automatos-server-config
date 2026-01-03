@@ -12,7 +12,7 @@ This project provides recipes for building Ignition (*.ign) files from Butane(*.
 > Use a subfolder for each server deployment with a `main.bu` file as the primary butane configuration file. Refer to the `example-server` configuration for more information.
 
 > [!NOTE]
-> For Windows development, execute the command `just setup` from an administrative Powershell window to install required dependencies.
+> For Windows development, execute the command `just setup` from an administrative Powershell window to install required dependencies. For WSL2 development, execute the `just setup` command from the Ubuntu console or a Windows Terminal window.
 
 1. Define the Butane configuration files for your server deployments.
 1. Execute `just download-iso` to download the latest Fedora CoreOS ISO file. Write the ISO to a USB drive using Etcher (or similar tool)
