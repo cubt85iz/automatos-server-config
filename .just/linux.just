@@ -470,11 +470,15 @@ validate:
   # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
 
-  # Validate all generated Ignition files.
+  # Validate the merged Ignition files.
   if [ -d ".generated/config" ]; then
-    shopt -s globstar
-    for FILE in .generated/**/*.ign; do
-      just validate-ignition "$FILE"
+    for FILE in .generated/config/*.ign; do
+      if [ -s "$FILE" ]; then
+        just validate-ignition "$FILE"
+      else
+        echo "ERROR: The merged ignition file ($FILE) is empty or does not exist."
+        exit 1
+      fi
     done
   else
     echo "ERROR: Unable to locate ignition files directory."
