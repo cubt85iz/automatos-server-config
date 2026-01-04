@@ -1,3 +1,5 @@
+import "shared/output.just"
+
 # Helper for build recipe.
 [linux]
 [no-cd]
@@ -450,31 +452,42 @@ setup:
       sudo mv butane /usr/local/bin/
       sudo chmod +x /usr/local/bin/butane
     else
-      echo "INFO: Located butane. Skipping installation..."
+      just display-info "Butane is already installed."
     fi
 
     # Install yamllint package if needed.
     if ! which yamllint &>/dev/null; then
       sudo apt install -y yamllint
     else
-      echo "INFO: Located yamllint. Skipping installation..."
+      just display-info "YAMLLint is already installed."
     fi
 
     # Install podman packages if needed.
     if ! which podman &>/dev/null; then
       sudo apt install -y podman podman-docker
     else
-      echo "INFO: Located podman. Skipping installation..."
+      just display-info "Podman is already installed."
     fi
 
     # Install python packages if needed.
     if ! which python3 &>/dev/null; then
       sudo apt install -y python3 python3-pip
     else
-      echo "INFO: Located python. Skipping installation..."
+      just display-info "Python is already installed."
+    fi
+
+    # Update just if needed.
+    VERSION=$(just --version | cut -d ' ' -f 2)
+    LATEST=$(curl -s https://api.github.com/repos/casey/just/releases/latest | grep tag_name | cut -d '"' -f 4)
+    if [ "$VERSION" != "$LATEST" ]; then
+      curl -sSL https://github.com/casey/just/releases/latest/download/just-$LATEST-x86_64-unknown-linux-musl.tar.gz -o $HOME/just.tar.gz
+      tar xvzf $HOME/just.tar.gz -C /usr/local/bin/
+      rm $HOME/just.tar.gz
+    else
+      just display-info "The latest version of just is already installed."
     fi
   else
-    echo "ERROR: The setup recipe only works for WSL2-based Ubuntu distributions."
+    just display-error "The setup recipe only works for WSL2-based Ubuntu distributions."
     exit 1
   fi
 

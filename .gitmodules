@@ -1,0 +1,3 @@
+[submodule ".just/shared"]
+	path = .just/shared
+	url = https://github.com/cubt85iz/just-recipes.git
