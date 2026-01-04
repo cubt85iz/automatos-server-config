@@ -61,13 +61,13 @@ is-content-appended $SERVER $FILE $CONFIGFILE:
 
       # Diplay content missing from server file.
       if (( ${#MISSING_CONTENT[@]} > 0 )); then
-        echo "Content missing from file: $CONFIGFILE"
+        just display-error "Content missing from file: $CONFIGFILE"
         echo "Content:"
         echo "${MISSING_CONTENT[@]}"
         exit 1
       fi
     else
-      echo "Unable to locate file on server: $CONFIGFILE"
+      just display-error "Unable to locate file on server: $CONFIGFILE"
       exit 1
     fi
   fi
@@ -99,7 +99,7 @@ is-content-overwritten $SERVER $FILE $CONFIGFILE:
 
         # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
         if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
-          echo "Content differs for file: $CONFIGFILE"
+          just display-error "Content differs for file: $CONFIGFILE"
           if ! DIFFERENCE=$(ssh $SERVER "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
             echo "$DIFFERENCE"
             echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ($SERVER)"
@@ -108,11 +108,11 @@ is-content-overwritten $SERVER $FILE $CONFIGFILE:
           fi
         fi
       else
-        echo "Unable to compute checksum for file: $CONFIGFILE"
+        just display-error "Unable to compute checksum for file: $CONFIGFILE"
         exit 1
       fi
     else
-      echo "Unable to locate file on server: $CONFIGFILE"
+      just display-error "Unable to locate file on server: $CONFIGFILE"
       exit 1
     fi
   fi
@@ -258,7 +258,7 @@ build:
 
   # Exit if an error occurred while processing non-primary butane files.
   if [ $JOBS_STATUS -ne 0 ]; then
-    echo "ERROR: An error occurred while building ignition files."
+    just display-error "An error occurred while building ignition files."
     exit $JOBS_STATUS
   fi
 
@@ -341,7 +341,7 @@ diff server:
       elif [ "$APPEND" == "true" ]; then
         just -q is-content-appended {{ server }} "$FILE" "$CONFIGFILE" || EQUAL="false"
       else
-        echo "Unable to process file: $CONFIGFILE"
+        just display-error "Unable to process file: $CONFIGFILE"
         EQUAL="false"
       fi
     done
@@ -352,7 +352,7 @@ diff server:
 
   # Exit unsuccessfully if not equal
   if [ "$EQUAL" != "true" ]; then
-    echo "Configuration drift has been detected."
+    just display-error "Configuration drift has been detected."
     exit 1
   fi
 
@@ -475,17 +475,6 @@ setup:
     else
       just display-info "Python is already installed."
     fi
-
-    # Update just if needed.
-    VERSION=$(just --version | cut -d ' ' -f 2)
-    LATEST=$(curl -s https://api.github.com/repos/casey/just/releases/latest | grep tag_name | cut -d '"' -f 4)
-    if [ "$VERSION" != "$LATEST" ]; then
-      curl -sSL https://github.com/casey/just/releases/latest/download/just-$LATEST-x86_64-unknown-linux-musl.tar.gz -o $HOME/just.tar.gz
-      tar xvzf $HOME/just.tar.gz -C /usr/local/bin/
-      rm $HOME/just.tar.gz
-    else
-      just display-info "The latest version of just is already installed."
-    fi
   else
     just display-error "The setup recipe only works for WSL2-based Ubuntu distributions."
     exit 1
@@ -509,11 +498,11 @@ validate:
       if [ -s "$FILE" ]; then
         just validate-ignition "$FILE"
       else
-        echo "ERROR: The merged ignition file ($FILE) is empty or does not exist."
+        just display-error "The merged ignition file ($FILE) is empty or does not exist."
         exit 1
       fi
     done
   else
-    echo "ERROR: Unable to locate ignition files directory."
+    just display-error "Unable to locate ignition files directory."
     exit 1
   fi

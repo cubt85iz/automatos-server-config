@@ -6,3 +6,6 @@ import ".just/windows.just"
 
 # Executes all recipes required to serve ignition files
 run: clean lint build validate serve
+
+update:
+  @git submodule update --remote .just/shared
