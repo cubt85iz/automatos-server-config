@@ -1,0 +1,49 @@
+---
+# Open WebUI Environment Variables
+## Configures environment variables via a systemd-container drop-in file.
+## This allows the server maintainer to tune application settings (such as
+## LDAP authentication or web URLs) without modifying the base container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/open-webui/open-webui.container.d/variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # IMPORTANT: Many of these variables are stored persistently in the Open WebUI database.
+          # They will not be used once the database is initialized. For existing deployments,
+          # make any changes via the admin panel. You may document changes here to ensure
+          # they are applied when redeploying with new volumes.
+          #
+          # Consider these additional variables: OPENAI_API_BASE_URL, OPENAI_API_KEY.
+
+          # General Open WebUI Settings
+          Environment=WEBUI_URL={{ OPEN_WEBUI_URL }}
+          Environment=ENABLE_OLLAMA_API=false
+
+          # LDAP Authentication Configuration
+          Environment=ENABLE_LDAP=true
+          Environment=LDAP_SERVER_LABEL={{ OPEN_WEBUI_LDAP_SERVER_LABEL }}
+          Environment=LDAP_SERVER_HOST={{ OPEN_WEBUI_LDAP_SERVER_HOST }}
+          Environment=LDAP_SERVER_PORT={{ OPEN_WEBUI_LDAP_SERVER_PORT }}
+          Environment=LDAP_USE_TLS=false
+          Environment=LDAP_VALIDATE_CERT=false
+          Environment=LDAP_APP_DN={{ OPEN_WEBUI_LDAP_APP_DN }}
+          Environment=LDAP_APP_PASSWORD={{ OPEN_WEBUI_LDAP_APP_PASSWORD }}
+          Environment=LDAP_SEARCH_BASE={{ OPEN_WEBUI_LDAP_SEARCH_BASE }}
+          Environment=LDAP_ATTRIBUTE_FOR_USERNAME=uid
+          Environment=LDAP_ATTRIBUTE_FOR_MAIL=mail
+          Environment=LDAP_SEARCH_FILTER={{ OPEN_WEBUI_LDAP_SEARCH_FILTER }}
+
+          [Service]
+          Environment=CONTAINER_PATH={{ CONTAINER_VOLUME_ROOT }}/volumes/open-webui
+          Environment=WEB_PORT={{ OPEN_WEBUI_PORT }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

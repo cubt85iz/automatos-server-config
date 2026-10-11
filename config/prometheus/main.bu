@@ -1,0 +1,150 @@
+---
+# ==============================================================================
+# SERVER PROVISIONING MANIFEST: Prometheus
+# This Jinja2 template orchestrates the Fedora CoreOS provisioning process.
+#
+# It manages the following configuration layers:
+#   - Ignition Merges (Networking, Services, Backups, Devices)
+#   - Storage Layout (Directories, Filesystem, Symlinks)
+#   - User Authentication & Security (passwd/ssh)
+# ==============================================================================
+variant: fcos
+version: 1.6.0
+
+# ==============================================================================
+# IGNITION MERGES FOR SERVER CONFIGURATION
+# ==============================================================================
+ignition:
+  config:
+    merge:
+      # --- Backups ---
+      - local: config/prometheus/backups/rclone.ign
+      - local: config/prometheus/backups/targets.ign
+      - local: config/prometheus/backups/variables.ign
+
+      # --- Devices ---
+      - local: config/prometheus/devices/nvidia.ign
+
+      # --- Networking ---
+      - local: config/prometheus/networking/firewall.ign
+      - local: config/prometheus/networking/interfaces.ign
+      - local: config/prometheus/networking/ssh.ign
+
+      # --- Services ---
+      # > Containers
+      # >> Chatterbox-Turbo
+      - local: config/prometheus/services/ai/containers/chatterbox-turbo/devices.ign
+      - local: config/prometheus/services/ai/containers/chatterbox-turbo/networking.ign
+      - local: config/prometheus/services/ai/containers/chatterbox-turbo/properties.ign
+      - local: config/prometheus/services/ai/containers/chatterbox-turbo/security.ign
+      - local: config/prometheus/services/ai/containers/chatterbox-turbo/variables.ign
+
+      # >> Llama.cpp
+      - local: config/prometheus/services/ai/containers/llama-cpp/commands.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/devices.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/firewall.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/networking.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/properties.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/security.ign
+      - local: config/prometheus/services/ai/containers/llama-cpp/variables.ign
+
+      # >> Open WebUI
+      - local: config/prometheus/services/ai/containers/open-webui/firewall.ign
+      - local: config/prometheus/services/ai/containers/open-webui/networking.ign
+      - local: config/prometheus/services/ai/containers/open-webui/properties.ign
+      - local: config/prometheus/services/ai/containers/open-webui/security.ign
+      - local: config/prometheus/services/ai/containers/open-webui/variables.ign
+
+      # >> Parakeet
+      - local: config/prometheus/services/ai/containers/parakeet/devices.ign
+      - local: config/prometheus/services/ai/containers/parakeet/networking.ign
+      - local: config/prometheus/services/ai/containers/parakeet/properties.ign
+      - local: config/prometheus/services/ai/containers/parakeet/security.ign
+      - local: config/prometheus/services/ai/containers/parakeet/variables.ign
+
+      # >> Uptime Kuma
+      - local: config/prometheus/services/uptime-kuma/firewall.ign
+      - local: config/prometheus/services/uptime-kuma/properties.ign
+      - local: config/prometheus/services/uptime-kuma/security.ign
+      - local: config/prometheus/services/uptime-kuma/variables.ign
+
+      # >> Wyoming-OpenAI Bridge
+      - local: config/prometheus/services/ai/containers/wyoming-openai/dependencies.ign
+      - local: config/prometheus/services/ai/containers/wyoming-openai/firewall.ign
+      - local: config/prometheus/services/ai/containers/wyoming-openai/networking.ign
+      - local: config/prometheus/services/ai/containers/wyoming-openai/properties.ign
+      - local: config/prometheus/services/ai/containers/wyoming-openai/security.ign
+      - local: config/prometheus/services/ai/containers/wyoming-openai/variables.ign
+
+      # > Networks
+      # >> AI
+      - local: config/prometheus/services/ai/networks/ai.ign
+
+      # --- Shared Components ---
+      - local: config/shared/nfs.ign
+      - local: config/shared/systemd.ign
+
+# ==============================================================================
+# STORAGE CONFIGURATION
+# ==============================================================================
+storage:
+  directories:
+    - path: {{ CONTAINER_VOLUME_ROOT }}
+      user:
+        name: core
+      group:
+        name: core
+
+  files:
+    - path: /etc/hostname
+      overwrite: true
+      contents:
+        inline: |
+          {{ NAME}}.{{ DOMAIN }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+    # Configure UID/GID mapping for the root user to support user namespaces.
+    # This allows root to map container UIDs/GIDs to host UIDs/GIDs starting at 100000.
+    - path: /etc/subuid
+      overwrite: true
+      contents:
+        inline: |
+          core:100000:65536
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    - path: /etc/subgid
+      overwrite: true
+      contents:
+        inline: |
+          core:100000:65536
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+  links:
+    - path: /etc/localtime
+      target: /usr/share/zoneinfo/{{ TIMEZONE }}
+
+    - path: {{ CONTAINER_VOLUME_ROOT }}/volumes
+      target: {{ ZPOOL }}
+
+# ==============================================================================
+# USER CONFIGURATION
+# ==============================================================================
+passwd:
+  users:
+    - name: core
+      password_hash: {{ PASSWORD_HASH }}
+      ssh_authorized_keys:
+{% for key in SSH_AUTHORIZED_KEYS %}
+        - '{{ key }}'
+{%- endfor %}

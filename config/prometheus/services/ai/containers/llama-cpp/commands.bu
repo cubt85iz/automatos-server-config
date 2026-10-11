@@ -1,0 +1,34 @@
+---
+# Llama.cpp Container Execution Configuration
+## Configures the container's command-line arguments via a systemd-container drop-in file.
+## This allows for easy model swapping, parameter tuning (e.g., context size, temperature),
+## and hardware offloading adjustments without modifying the base container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/llama-cpp/llama-cpp.container.d/commands.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Model: Gemma 4 26B-A4B-it (Vision-capable)
+          # Configuration: High-performance inference with 32k context and GPU offloading
+          Exec=--port 8080 \
+            --model /models/gemma-4-26B-A4B-it-UD-IQ4_XS.gguf \
+            --mmproj /models/mmproj-BF16.gguf \
+            --props --fit off \
+            --n-gpu-layers 99 \
+            --ctx-size 32768 \
+            --batch-size 512 \
+            -ctk q4_0 -ctv q4_0 \
+            --temp 1.0 --top-p 0.95 --top-k 64 \
+            --flash-attn on \
+            --load-mode none
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

@@ -1,0 +1,32 @@
+---
+# Backup Service Target Configuration
+## Defines a systemd target unit to group and manage backup-related services.
+## This provides a single synchronization point for starting or stopping
+## all backup tasks simultaneously.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/systemd/system/backup.target
+      overwrite: true
+      contents:
+        inline: |
+          [Unit]
+          # Grouping unit for all backup-related service tasks
+          Description=Target for container backups
+
+          [Install]
+          WantedBy=multi-user.target
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+
+systemd:
+  units:
+    # Ensure the backup target is enabled and available on boot.
+    - name: backup.target
+      enabled: true

@@ -1,0 +1,29 @@
+---
+# Uptime Kuma Environment Variables
+## Configures environment variables via a systemd-container drop-in file.
+## This allows the server maintainer to tune application configuration (such as
+## timezone or internal paths) without modifying the primary container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/uptime-kuma/uptime-kuma.container.d/variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Set the system timezone
+          Environment=TZ=America/New_York
+
+          [Service]
+          # Define the base path for container-managed volumes
+          Environment=CONTAINER_PATH={{ CONTAINER_VOLUME_ROOT }}/volumes/uptime-kuma
+          # Set the port used for the web interface
+          Environment=WEB_PORT={{ UPTIME_KUMA_PORT }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

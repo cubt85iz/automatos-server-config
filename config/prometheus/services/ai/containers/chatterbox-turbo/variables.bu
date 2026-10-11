@@ -1,0 +1,30 @@
+---
+# Chatterbox-Turbo Environment Variables
+## Configures environment variables via a systemd-container drop-in file.
+## This allows for easy tuning of container-specific settings (such as GPU access
+## and performance optimizations) without modifying the core container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/chatterbox-turbo/chatterbox-turbo.container.d/variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          # Expose all available NVIDIA GPUs to the container
+          Environment=NVIDIA_VISIBLE_DEVICES=all
+          # Enable necessary driver capabilities for GPU compute and utility tasks
+          Environment=NVIDIA_DRIVER_CAPABILITIES=compute,utility
+          # Enable high-speed Hugging Face transfers for faster model downloads
+          Environment=HF_HUB_ENABLE_HF_TRANSFER=1
+
+          [Service]
+          # Define the internal path used by the application for volume management
+          Environment=CONTAINER_PATH={{ CONTAINER_VOLUME_ROOT }}/volumes/chatterbox-turbo
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

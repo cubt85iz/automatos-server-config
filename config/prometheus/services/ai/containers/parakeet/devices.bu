@@ -1,0 +1,29 @@
+---
+# Parakeet Device Configuration
+## Configures hardware device access via a systemd-container drop-in file.
+## This allows the server maintainer to manage GPU access requirements
+## independently of the main container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/parakeet/parakeet.container.d/devices.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Unit]
+          # Ensure NVIDIA CDI (Container Device Interface) resources are refreshed
+          # before the container attempts to start to prevent device initialization errors.
+          Requires=nvidia-cdi-refresh.service
+          After=nvidia-cdi-refresh.service
+
+          [Container]
+          # Grant the container access to all available NVIDIA GPUs via CDI
+          AddDevice=nvidia.com/gpu=all
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

@@ -1,0 +1,25 @@
+---
+# Open WebUI Firewall Configuration
+## Creates a custom firewalld service definition to permit traffic to the
+## Open WebUI interface. This allows the service to be managed easily via firewalld.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/firewalld/services/open-webui.xml
+      overwrite: true
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <service>
+            <short>Open WebUI</short>
+            <description>Open WebUI web interface service</description>
+            <port protocol="tcp" port="{{ OPEN_WEBUI_PORT }}"/>
+          </service>
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

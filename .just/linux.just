@@ -1,212 +1,11 @@
+import "linux/helpers.just"
 import "shared/output.just"
-
-# Helper for build recipe.
-[linux]
-[no-cd]
-[private]
-build-ignition $FILE FILES_DIR='.':
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  # Determine if yamllint is installed locally.
-  HAS_BUTANE=1
-  if which butane &>/dev/null; then
-    HAS_BUTANE=0
-  fi
-
-  # Set up file path for Ignition file.
-  # Path should match the Butane file unless it is `main.bu`. In that case, the
-  # Ignition file should be named after the parent folder name which represents
-  # the server.
-  IGNITION_FILE=".generated/${FILE%.*}.ign"
-  if [ "$(basename $FILE)" == "main.bu" ]; then
-    IGNITION_FILE="${IGNITION_FILE%/*}.ign"
-  fi
-  mkdir -p "$(dirname $IGNITION_FILE)"
-
-  # Generate Ignition file.
-  echo "Generating ignition file: $IGNITION_FILE"
-  if [ $HAS_BUTANE -eq 0 ]; then
-    butane --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
-  else
-    podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
-      --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
-  fi
-
-[linux]
-[no-cd]
-[private]
-is-content-appended $SERVER $FILE $CONFIGFILE:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  # Unlike `contents`, `append` is an array. Store content that should have been appended to the file.
-  readarray -t APPENDEDCONTENT < <(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .append[].inline" "$FILE")
-
-  # If there is content to append to the file, then proceed.
-  if (( ${#APPENDEDCONTENT[@]} > 0 )); then
-    # Check for existence of the file on the server. If necessary, use `sudo`.
-    if ssh $SERVER "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
-
-      # Iterate over appended content and determine if the server file contains it. If the content
-      # is missing, then add it to the `MISSING_CONTENT` array for displaying later.
-      MISSING_CONTENT=()
-      for CONTENT in "${APPENDEDCONTENT[@]}"; do
-        if ! ssh $SERVER "grep -q \"$CONTENT\" \"$CONFIGFILE\""; then
-          MISSING_CONTENT+=("$CONTENT")
-        fi
-      done
-
-      # Diplay content missing from server file.
-      if (( ${#MISSING_CONTENT[@]} > 0 )); then
-        just display-error "Content missing from file: $CONFIGFILE"
-        echo "Content:"
-        echo "${MISSING_CONTENT[@]}"
-        exit 1
-      fi
-    else
-      just display-error "Unable to locate file on server: $CONFIGFILE"
-      exit 1
-    fi
-  fi
-
-  exit 0
-
-[linux]
-[no-cd]
-[private]
-is-content-overwritten $SERVER $FILE $CONFIGFILE:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  # Calculate checksum of file contents listed in the configuration file.
-  CONTENT=$(yq -r ".storage.files[] | select(.path == \"$CONFIGFILE\") | .contents.inline // \"\"" "$FILE")
-
-  # A file can be overwritten or appended. If `contents` have been provided then perform an equality
-  # comparison of the contents of the file against the contents listed in the configuration file.
-  if [ -n "$CONTENT" ]; then
-    CONTENT_CSUM=$(sha256sum < <(echo "$CONTENT") | cut -d' ' -f1)
-
-    # Check for existence of the file on the server. If necessary, use `sudo`.
-    if ssh $SERVER "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
-
-      # Calculate checksum of server content
-      if SERVER_CSUM=$((ssh $SERVER "sha256sum '$CONFIGFILE' 2>/dev/null || \
-        sudo sha256sum '$CONFIGFILE'") | cut -d' ' -f1); then
-
-        # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
-        if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
-          just display-error "Content differs for file: $CONFIGFILE"
-          if ! DIFFERENCE=$(ssh $SERVER "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
-            echo "$DIFFERENCE"
-            echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ($SERVER)"
-            echo ""
-            exit 1
-          fi
-        fi
-      else
-        just display-error "Unable to compute checksum for file: $CONFIGFILE"
-        exit 1
-      fi
-    else
-      just display-error "Unable to locate file on server: $CONFIGFILE"
-      exit 1
-    fi
-  fi
-
-  exit 0
-
-[linux]
-[no-cd]
-[private]
-is-file-ignored $FILE:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  while IFS= read -r line; do
-    # Skip comments and empty lines
-    [[ "$line" =~ ^# ]] && continue
-    [ -z "$line" ] && continue
-
-    # Remove leading/trailing whitespace
-    line=$(echo "$line" | tr -d '[:space:]')
-
-    # Skip exception patterns
-    if [[ "$line" =~ ^! ]]; then
-        continue
-    fi
-
-    # Convert pattern to regex
-    # Handles: * (any number of characters), ? (single character), [a-z] (character classes)
-    regex=$(echo "$line" | sed -E 's/\*\/\./\.\*\/\./g; s/\*\.*/\.\*\.txt/g; s/\?/./g; s/[\[\/\]]/\\&/g')
-
-    # Check if file matches pattern (case-sensitive)
-    if [[ "$FILE" =~ $regex ]]; then
-        exit 0
-    fi
-  done < ".diffignore"
-
-  exit 1
-
-[linux]
-[no-cd]
-[private]
-is-ubuntu:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  if [ -s "/etc/os-release" ]; then
-    . /etc/os-release
-  fi
-
-  if [[ "$ID" == "ubuntu" || "$NAME" =~ [Uu]buntu ]]; then
-    exit 0
-  fi
-
-  exit 1
-
-[linux]
-[no-cd]
-[private]
-is-wsl-environment:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  if grep -qi "microsoft" /proc/version 2>/dev/null || \
-    grep -qi "microsoft" /proc/sys/kernel/osrelease 2>/dev/null; then
-    exit 0
-  fi
-
-  if [ -n "$WSL_DISTRO_NAME" ]; then
-    exit 0
-  fi
-
-  exit 1
-
-# Helper for validate recipe.
-[linux]
-[no-cd]
-[private]
-validate-ignition $FILE:
-  #!/usr/bin/env bash
-
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
-  set -euo pipefail
-
-  # Validate Ignition file.
-  echo "Validating ignition file: $FILE"
-  podman run --rm -i quay.io/coreos/ignition-validate:release - < "$FILE"
 
 # Transpiles butane configuration(s) to create ignition file(s)
 [linux]
 [no-cd]
-build:
+[group('Build & Provisioning')]
+build: preprocess-templates
   #!/usr/bin/env bash
 
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
@@ -223,8 +22,8 @@ build:
   MAX_JOBS=8
   JOBS_STATUS=0
 
-  # Find & transpile non-primary butane files.
-  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | grep -v main.bu | sort -r)
+  # Find & transpile non-primary butane files from staging.
+  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/*.bu | grep -v main.bu | sort -r)
   for FILE in ${BUTANE_FILES[@]}; do
     # Do not exceed max jobs. Wait for one to complete before proceeding.
     while (( ${#JOBS[@]} >= MAX_JOBS )); do
@@ -241,7 +40,8 @@ build:
       sleep 0.1
     done
   
-    just build-ignition "$FILE" &
+    # Pass .staging as the base files-dir so relative config/... paths resolve correctly
+    just build-ignition "$FILE" ".staging" &
     JOBS+=("$!")
   done
 
@@ -262,17 +62,19 @@ build:
     exit $JOBS_STATUS
   fi
 
-  # Find & transpile primary butane files for server configurations.
-  readarray -t BUTANE_FILES < <(ls -1 config/**/main.bu | sort -r)
+  # Find & transpile primary butane files for server configurations from staging.
+  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/main.bu | sort -r)
   for FILE in ${BUTANE_FILES[@]}; do
+    # Pass .staging as FILES_DIR so paths relative to config/ resolve correctly
     just build-ignition "$FILE" ".generated"
   done
 
 # Remove all rendered ignition files.
 [linux]
 [no-cd]
+[group('Maintenance & Utility')]
 clean:
-  @rm -rf .generated
+  @rm -rf .generated .staging
 
 # Creates archives for configurations
 [linux]
@@ -307,8 +109,63 @@ create-archives *config:
     echo "Created archive: $ARCHIVE"
   done
 
+# Decrypt secrets.enc.yaml using Mozilla SOPS and the post-quantum age private key from Bitwarden
 [linux]
 [no-cd]
+[group('Secrets & Key Management')]
+decrypt-secrets folder input="secrets.enc.yaml" output="secrets.yaml":
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+  if [ "$BW_STATUS" = "unauthenticated" ]; then
+      echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+      exit 1
+  fi
+
+  WAS_LOCKED=false
+  if [ "$BW_STATUS" = "locked" ]; then
+      echo "==> Bitwarden vault is locked. Prompting to unlock..."
+      export BW_SESSION=$(bw unlock --raw)
+      WAS_LOCKED=true
+  fi
+
+  # Ensure locking on exit if vault was unlocked during execution
+  trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+
+  ITEM_NAME="{{folder}}-age-key"
+
+  echo "==> Fetching latest age private key from Bitwarden..."
+  ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
+  if [ -z "$ITEM_JSON" ]; then
+      echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
+      exit 1
+  fi
+
+  PRIV_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PrivateKey") | .value')
+
+  if [ -z "$PRIV_KEY_CONTENT" ] || [ "$PRIV_KEY_CONTENT" == "null" ]; then
+      echo "Error: PrivateKey field not found in Bitwarden item '$ITEM_NAME'." >&2
+      exit 1
+  fi
+
+  # Clean up path variables
+  CONFIG_DIR="config/{{folder}}"
+  INPUT_FILE="$CONFIG_DIR/{{input}}"
+  OUTPUT_FILE="$CONFIG_DIR/{{output}}"
+  
+  if [ ! -f "$INPUT_FILE" ]; then
+      echo "Error: Input file '$INPUT_FILE' does not exist." >&2
+      exit 1
+  fi
+
+  echo "==> Decrypting $INPUT_FILE into $OUTPUT_FILE using SOPS with age..."
+  SOPS_AGE_KEY="$PRIV_KEY_CONTENT" sops --decrypt "$INPUT_FILE" > "$OUTPUT_FILE"
+  echo "Success! Decrypted file: $OUTPUT_FILE"
+
+[linux]
+[no-cd]
+[group('Verification & Diagnostics')]
 diff server:
   #!/usr/bin/env bash
 
@@ -359,8 +216,63 @@ diff server:
 # Download latest stable Fedora CoreOS ISO
 [linux]
 [no-cd]
+[group('Maintenance & Utility')]
 download-iso:
-  @podman run --privileged --pull always --rm -v /dev:/dev -v /run/udev:/run/udev -v .:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
+  @podman run --pull always --rm -v .:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
+
+# Encrypt secrets.yaml using Mozilla SOPS and the post-quantum age public key from Bitwarden
+[linux]
+[no-cd]
+[group('Secrets & Key Management')]
+encrypt-secrets folder input="secrets.yaml" output="secrets.enc.yaml":
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+  if [ "$BW_STATUS" = "unauthenticated" ]; then
+      echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+      exit 1
+  fi
+
+  WAS_LOCKED=false
+  if [ "$BW_STATUS" = "locked" ]; then
+      echo "==> Bitwarden vault is locked. Prompting to unlock..."
+      export BW_SESSION=$(bw unlock --raw)
+      WAS_LOCKED=true
+  fi
+
+  if [ "$WAS_LOCKED" = "true" ]; then
+      trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  fi
+
+  ITEM_NAME="{{folder}}-age-key"
+
+  echo "==> Fetching latest age public key from Bitwarden for '$ITEM_NAME'..."
+  ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
+  if [ -z "$ITEM_JSON" ]; then
+      echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
+      exit 1
+  fi
+
+  PUB_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PublicKey") | .value')
+  if [ -z "$PUB_KEY_CONTENT" ] || [ "$PUB_KEY_CONTENT" == "null" ]; then
+      echo "Error: PublicKey field not found in Bitwarden item '$ITEM_NAME'." >&2
+      exit 1
+  fi
+
+  # Clean up path variables
+  CONFIG_DIR="config/{{folder}}"
+  INPUT_FILE="$CONFIG_DIR/{{input}}"
+  OUTPUT_FILE="$CONFIG_DIR/{{output}}"
+  
+  if [ ! -f "$INPUT_FILE" ]; then
+      echo "Error: Input file '$INPUT_FILE' does not exist." >&2
+      exit 1
+  fi
+
+  echo "==> Encrypting $INPUT_FILE into $OUTPUT_FILE using SOPS with age..."
+  sops --encrypt --age "$PUB_KEY_CONTENT" "$INPUT_FILE" > "$OUTPUT_FILE"
+  echo "Success! Created encrypted file: $OUTPUT_FILE"
 
 # Extract archives for configurations
 [linux]
@@ -386,10 +298,77 @@ extract-archives *config:
     echo "Extracted archive: $ARCHIVE"
   done
 
+# Generates a post-quantum age key pair for encrypting and decrypting configuration files
+[linux]
+[no-cd]
+[group('Secrets & Key Management')]
+generate-age-key folder:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+  if [ "$BW_STATUS" = "unauthenticated" ]; then
+      echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+      exit 1
+  fi
+
+  WAS_LOCKED=false
+  if [ "$BW_STATUS" = "locked" ]; then
+      echo "==> Bitwarden vault is locked. Prompting to unlock..."
+      export BW_SESSION=$(bw unlock --raw)
+      WAS_LOCKED=true
+  fi
+
+  if [ "$WAS_LOCKED" = "true" ]; then
+      trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  fi
+
+  ITEM_NAME="{{folder}}-age-key"
+
+  echo "==> Checking if Bitwarden item '$ITEM_NAME' already exists..."
+  if bw list items --search "$ITEM_NAME" 2>/dev/null | jq -e --arg name "$ITEM_NAME" 'any(.[] ; .name == $name)' >/dev/null; then
+      echo "Error: Bitwarden item '$ITEM_NAME' already exists. Aborting to prevent key rotation." >&2
+      exit 1
+  fi
+
+  echo "==> Generating post-quantum age key pair (ML-KEM-768 + X25519)..."
+  AGE_OUTPUT=$(age-keygen -pq)
+  PUB_KEY=$(echo "$AGE_OUTPUT" | grep '^# public key:' | cut -d' ' -f4)
+  PRIV_KEY=$(echo "$AGE_OUTPUT" | grep '^AGE-SECRET-KEY')
+
+  if [ -z "$PUB_KEY" ] || [ -z "$PRIV_KEY" ]; then
+      echo "Error: Failed to generate age keypair." >&2
+      exit 1
+  fi
+
+  echo "==> Uploading post-quantum credentials and keys to Bitwarden..."
+  PAYLOAD=$(jq -n \
+      --arg name "$ITEM_NAME" \
+      --arg username "{{folder}}" \
+      --arg pub "$PUB_KEY" \
+      --arg priv "$PRIV_KEY" \
+      '{
+          type: 1,
+          name: $name,
+          notes: "Automated post-quantum age key generation via just",
+          login: {
+              username: $username
+          },
+          fields: [
+              {name: "PublicKey", value: $pub, type: 0},
+              {name: "PrivateKey", value: $priv, type: 1}
+          ]
+      }')
+
+  ENCODED=$(bw encode <<< "$PAYLOAD")
+  bw create item "$ENCODED" >/dev/null
+  echo "Success! Created Bitwarden item: $ITEM_NAME"
+
 # Lints butane file using yamllint.
 [linux]
 [no-cd]
-lint:
+[group('Verification & Diagnostics')]
+lint: preprocess-templates
   #!/usr/bin/env bash
 
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
@@ -407,7 +386,7 @@ lint:
   fi
 
   shopt -s globstar
-  readarray -t BUTANE_FILES < <(ls -1 config/**/*.bu | sort -r)
+  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/*.bu | sort -r)
 
   if [ $HAS_YAMLLINT -ne 0 ]; then
     podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "${BUTANE_FILES[@]}"
@@ -415,11 +394,108 @@ lint:
     yamllint "${BUTANE_FILES[@]}"
   fi
 
-  echo "All butane files passed linting checks."
+  echo "All preprocessed butane files passed linting checks."
+
+# Rebuilds the custom Containerfile image and reprovisions the Toolbx container
+[linux]
+[no-cd]
+[group('Maintenance & Utility')]
+provision-toolbox:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  CONTAINER_NAME="fcos-builder"
+  IMAGE_NAME="localhost/fcos-builder:latest"
+
+  echo "==> Checking for existing Toolbx container '$CONTAINER_NAME'..."
+  if podman ps -a --format '{{{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+      echo "==> Removing existing container..."
+      toolbox rm -f "$CONTAINER_NAME" 2>/dev/null || podman rm -f "$CONTAINER_NAME"
+  fi
+
+  echo "==> Building custom OCI image ($IMAGE_NAME)..."
+  podman build -t "$IMAGE_NAME" .
+
+  echo "==> Creating fresh Toolbx container..."
+  toolbox create --container "$CONTAINER_NAME" --image "$IMAGE_NAME"
+
+  echo "Success! Toolbx '$CONTAINER_NAME' has been successfully reprovisioned."
+  
+# Rotate an existing age key with a new post-quantum keypair and update its entry in Bitwarden
+[linux]
+[no-cd]
+[group('Secrets & Key Management')]
+rotate-age-key folder:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+  if [ "$BW_STATUS" = "unauthenticated" ]; then
+      echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+      exit 1
+  fi
+
+  WAS_LOCKED=false
+  if [ "$BW_STATUS" = "locked" ]; then
+      echo "==> Bitwarden vault is locked. Prompting to unlock..."
+      export BW_SESSION=$(bw unlock --raw)
+      WAS_LOCKED=true
+  fi
+
+  if [ "$WAS_LOCKED" = "true" ]; then
+      trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  fi
+
+  ITEM_NAME="{{folder}}-age-key"
+
+  echo "==> Checking if Bitwarden item '$ITEM_NAME' exists for rotation..."
+  ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
+  if [ -z "$ITEM_JSON" ]; then
+      echo "Error: Bitwarden item '$ITEM_NAME' does not exist. Use 'generate-age-key' to create it first." >&2
+      exit 1
+  fi
+
+  ITEM_ID=$(echo "$ITEM_JSON" | jq -r '.id')
+
+  echo "==> Generating new post-quantum age key pair (ML-KEM-768 + X25519)..."
+  AGE_OUTPUT=$(age-keygen -pq)
+  PUB_KEY=$(echo "$AGE_OUTPUT" | grep '^# public key:' | cut -d' ' -f4)
+  PRIV_KEY=$(echo "$AGE_OUTPUT" | grep '^AGE-SECRET-KEY')
+
+  if [ -z "$PUB_KEY" ] || [ -z "$PRIV_KEY" ]; then
+      echo "Error: Failed to generate age keypair." >&2
+      exit 1
+  fi
+
+  echo "==> Updating Bitwarden item '$ITEM_NAME' with the new post-quantum key..."
+  PAYLOAD=$(jq -n \
+      --arg id "$ITEM_ID" \
+      --arg name "$ITEM_NAME" \
+      --arg username "{{folder}}" \
+      --arg pub "$PUB_KEY" \
+      --arg priv "$PRIV_KEY" \
+      '{
+          id: $id,
+          type: 1,
+          name: $name,
+          notes: "Rotated post-quantum age key via just",
+          login: {
+              username: $username
+          },
+          fields: [
+              {name: "PublicKey", value: $pub, type: 0},
+              {name: "PrivateKey", value: $priv, type: 1}
+          ]
+      }')
+
+  ENCODED=$(bw encode <<< "$PAYLOAD")
+  bw edit item "$ITEM_ID" "$ENCODED" >/dev/null
+  echo "Success! Rotated age key and updated Bitwarden item: $ITEM_NAME"
 
 # Hosts the ignition files for deployment
 [linux]
 [no-cd]
+[group('Build & Provisioning')]
 serve:
   #!/usr/bin/env bash
 
@@ -433,6 +509,7 @@ serve:
 # Configures WSL2 environment for development.
 [linux]
 [no-cd]
+[group('Maintenance & Utility')]
 setup:
   #!/usr/bin/env bash
 
@@ -483,6 +560,7 @@ setup:
 # Validate generated ignition files
 [linux]
 [no-cd]
+[group('Build & Provisioning')]
 validate:
   #!/usr/bin/env bash
 

@@ -1,0 +1,26 @@
+---
+# Uptime Kuma Firewall Configuration
+## Configures a firewalld service definition for the Uptime Kuma service.
+## This allows the firewall to manage network access to the service's dedicated port
+## using a named service definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/firewalld/services/uptime-kuma.xml
+      overwrite: true
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <service>
+            <short>Uptime Kuma</short>
+            <description>Uptime Kuma monitoring service</description>
+            <port protocol="tcp" port="{{ UPTIME_KUMA_PORT }}"/>
+          </service>
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

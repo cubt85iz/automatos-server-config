@@ -1,0 +1,26 @@
+---
+# Wyoming-OpenAI Firewall Configuration
+## Configures a firewalld service definition for the Wyoming-OpenAI container.
+## This allows the firewall to manage network access to the service's dedicated port
+## using a named service definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/firewalld/services/wyoming-openai.xml
+      overwrite: true
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <service>
+            <short>Wyoming OpenAI</short>
+            <description>Wyoming protocol bridge for OpenAI</description>
+            <port protocol="tcp" port="{{ WYOMING_OPENAI_PORT }}"/>
+          </service>
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

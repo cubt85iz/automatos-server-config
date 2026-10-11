@@ -1,0 +1,19 @@
+---
+variant: fcos
+version: 1.6.0
+
+systemd:
+  units:
+    - name: gssproxy.service
+      mask: true
+      enabled: false
+
+    - name: podman-auto-update.timer
+      enabled: true
+
+    - name: rpm-ostreed-automatic.timer
+      enabled: true
+
+    - name: zincati.service
+      mask: true
+      enabled: false

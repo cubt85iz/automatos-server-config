@@ -1,0 +1,23 @@
+---
+# Parakeet Environment Variables
+## Configures environment variables via a systemd-container drop-in file.
+## This allows the server maintainer to tune application performance (such as
+## worker counts) without modifying the primary container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/parakeet/parakeet.container.d/variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Set the number of concurrent worker processes to optimize CPU utilization
+          Environment=PARAKEET_WORKERS=2
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

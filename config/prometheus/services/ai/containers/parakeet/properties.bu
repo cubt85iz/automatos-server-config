@@ -1,0 +1,23 @@
+---
+# Parakeet Container Properties
+## Configures container runtime properties via a systemd-container drop-in file.
+## This allows the server maintainer to override or protect specific settings
+## (such as update policies) without modifying the primary container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/parakeet/parakeet.container.d/properties.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Enable automatic container image updates from the configured registry
+          AutoUpdate=registry
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

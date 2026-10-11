@@ -1,10 +1,23 @@
+# Ignore all temporary files stored in the .generated and .staging directories.
 .generated/**
+.staging/**
 
+# Ignore all Butane & ignition files to prevent accidental secrets exposure.
 *.bu
-!config/example-server/*.bu
-
 *.ign
+
+# Ignore all large or ephemeral files that are not needed for version control.
 *.iso
 *.iso.sig
 *.tar
-secrets*.yml
+
+# Ignore any file containing "secrets" and ending with .yaml or .yml
+*secrets*.yaml
+*secrets*.yml
+
+# Explicitly allow Butane files for the following directories.
+!config/prometheus/**/*.bu
+!config/shared/**/*.bu
+
+# Explicitly allow the encrypted secrets file.
+!secrets.enc.yaml

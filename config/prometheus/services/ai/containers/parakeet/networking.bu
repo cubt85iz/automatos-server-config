@@ -1,0 +1,23 @@
+---
+# Parakeet Networking Configuration
+## Configures network connectivity for the Parakeet container via a systemd-container drop-in file.
+## This allows the server maintainer to isolate or connect the container to
+## specific networks (like 'ai-network') without modifying the primary container definition.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/parakeet/parakeet.container.d/networking.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Assign the container to the dedicated AI network for secure inter-service communication
+          Network=ai-network
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644

@@ -1,0 +1,18 @@
+---
+# Backup Environment Variables
+## Appends environment variables to the system-wide /etc/environment file.
+## This provides a centralized way to manage configuration values shared across
+## different backup tasks.
+##
+## WARNING: This file contains sensitive credentials.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/environment
+      append:
+        - inline: |
+            # Secret key for backup authentication and encryption
+            BACKUP_KEY={{ BORG_BACKUP_KEY }}

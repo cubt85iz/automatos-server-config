@@ -1,0 +1,24 @@
+---
+# Chatterbox-Turbo Networking Configuration
+## Configures network connectivity for the container.
+## Configures container networking via a systemd-container drop-in file.
+## This allows the server maintainer to easily attach the container to
+## specific networks (like 'ai-network') without modifying the base image/service.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    - path: /etc/containers/systemd/chatterbox-turbo/chatterbox-turbo.container.d/networking.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Assign the container to the dedicated AI network
+          Network=ai-network
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
