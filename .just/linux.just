@@ -7,25 +7,18 @@ import "shared/output.just"
 [group('Build & Provisioning')]
 build: preprocess-templates
   #!/usr/bin/env bash
-
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
   set -euo pipefail
-
-  # Enable advanced globbing
   shopt -s globstar
 
-  # Pull latest ignition-validate image.
   podman pull -q quay.io/coreos/butane:release > /dev/null
 
-  # Setup jobs
   JOBS=()
   MAX_JOBS=8
   JOBS_STATUS=0
 
   # Find & transpile non-primary butane files from staging.
-  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/*.bu | grep -v main.bu | sort -r)
+  readarray -t BUTANE_FILES < <(ls -1 .staging/**/*.bu | grep -v main.bu | sort -r)
   for FILE in ${BUTANE_FILES[@]}; do
-    # Do not exceed max jobs. Wait for one to complete before proceeding.
     while (( ${#JOBS[@]} >= MAX_JOBS )); do
       for INDEX in ${!JOBS[@]}; do
         if wait "${JOBS[$INDEX]}"; then
@@ -34,18 +27,15 @@ build: preprocess-templates
           JOBS_STATUS=1
         fi
       done
-
-      # Compact the array and sleep briefly.
       JOBS=("${JOBS[@]}")
       sleep 0.1
     done
   
-    # Pass .staging as the base files-dir so relative config/... paths resolve correctly
-    just build-ignition "$FILE" ".staging" &
+    SERVER_STAGING_DIR="$(dirname "$FILE")"
+    just build-ignition "$FILE" "$SERVER_STAGING_DIR" &
     JOBS+=("$!")
   done
 
-  # Wait for any remaining jobs to complete before proceeding.
   while (( ${#JOBS[@]} > 0 )); do
     for INDEX in ${!JOBS[@]}; do
       if wait "${JOBS[$INDEX]}"; then
@@ -56,19 +46,20 @@ build: preprocess-templates
     done
   done
 
-  # Exit if an error occurred while processing non-primary butane files.
   if [ $JOBS_STATUS -ne 0 ]; then
-    just display-error "An error occurred while building ignition files."
+    just display-error "An error occurred while building ignition fragment files."
     exit $JOBS_STATUS
   fi
 
-  # Find & transpile primary butane files for server configurations from staging.
-  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/main.bu | sort -r)
+  # Find & transpile the staged main.bu for each server configuration
+  readarray -t BUTANE_FILES < <(ls -1 .staging/**/main.bu | sort -r)
   for FILE in ${BUTANE_FILES[@]}; do
-    # Pass .staging as FILES_DIR so paths relative to config/ resolve correctly
-    just build-ignition "$FILE" ".generated"
+    SERVER_STAGING_DIR="$(dirname "$FILE")"
+    
+    # Compile directly using the staged main.bu and its co-located .ign fragments
+    just build-ignition "$FILE" "$SERVER_STAGING_DIR"
   done
-
+  
 # Remove all rendered ignition files.
 [linux]
 [no-cd]
@@ -261,9 +252,9 @@ encrypt-secrets folder input="secrets.yaml" output="secrets.enc.yaml":
   fi
 
   # Clean up path variables
-  CONFIG_DIR="config/{{folder}}"
-  INPUT_FILE="$CONFIG_DIR/{{input}}"
-  OUTPUT_FILE="$CONFIG_DIR/{{output}}"
+  SERVERS_DIR="servers/{{folder}}"
+  INPUT_FILE="$SERVERS_DIR/{{input}}"
+  OUTPUT_FILE="$SERVERS_DIR/{{output}}"
   
   if [ ! -f "$INPUT_FILE" ]; then
       echo "Error: Input file '$INPUT_FILE' does not exist." >&2
@@ -386,7 +377,7 @@ lint: preprocess-templates
   fi
 
   shopt -s globstar
-  readarray -t BUTANE_FILES < <(ls -1 .staging/config/**/*.bu | sort -r)
+  readarray -t BUTANE_FILES < <(ls -1 .staging/**/*.bu | sort -r)
 
   if [ $HAS_YAMLLINT -ne 0 ]; then
     podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "${BUTANE_FILES[@]}"
@@ -584,3 +575,14 @@ validate:
     just display-error "Unable to locate ignition files directory."
     exit 1
   fi
+
+# Validate plaintext secrets.yaml files against the JSON schema
+[linux]
+[no-cd]
+[group('Verification & Diagnostics')]
+validate-secrets:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  echo "==> Running JSON schema validation on secrets files..."
+  python3 scripts/validate_secrets.py

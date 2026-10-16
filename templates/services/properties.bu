@@ -1,0 +1,23 @@
+---
+# Container Properties Configuration
+## Configures container runtime properties (such as auto-update policies) via
+## systemd-container drop-in files based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for container in configuration.services.containers %}
+    - path: /etc/containers/systemd/{{ container.name }}/{{container.name}}.container.d/properties.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          AutoUpdate={{ container.auto_update }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endfor %}

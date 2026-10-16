@@ -1,0 +1,32 @@
+---
+# Networking Firewall Configuration
+## Configures custom zones for firewalld.
+## This manages which services are exposed to custom network interfaces
+## based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for zone in configuration.firewall.zones %}
+    - path: /etc/firewalld/zones/{{ zone.name }}.xml
+      overwrite: true
+      contents:
+        inline: |
+          <?xml version="1.0" encoding="utf-8"?>
+          <zone>
+            <short>{{ zone.display_name }}</short>
+            <description>{{ zone.description }}</description>
+
+            {%- for service in zone.services %}
+            <service name="{{ service }}"/>
+            {%- endfor %}
+            <forward/>
+          </zone>
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endfor %}

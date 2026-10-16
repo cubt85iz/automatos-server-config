@@ -1,0 +1,24 @@
+---
+# Network Configuration
+## Configures dedicated virtual networks for containerized services
+## via systemd-network quadlet files based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for network in configuration.services.networks %}
+    - path: /etc/containers/systemd/{{ network.name }}.network
+      overwrite: true
+      contents:
+        inline: |
+          [Network]
+          NetworkName={{ network.network_name | default('%p') }}
+          Subnet={{ network.subnet }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endfor %}

@@ -1,0 +1,24 @@
+---
+# System Files Configuration
+## Provisions custom static files with specified permissions and ownership
+## based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- if configuration.storage is defined and configuration.storage.files is defined %}
+    {%- for file in configuration.storage.files %}
+    - path: {{ file.path }}
+      overwrite: {{ file.overwrite | default(true) | string | lower }}
+      contents:
+        inline: |
+          {{ file.contents | indent(10) }}
+      user:
+        name: {{ file.user | default('root') }}
+      group:
+        name: {{ file.group | default('root') }}
+      mode: {{ file.mode | default('0644') }}
+    {%- endfor %}
+    {%- endif %}

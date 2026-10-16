@@ -1,0 +1,27 @@
+---
+# Networking Interface Configuration
+## Configures network interface naming via systemd-networkd .link files
+## based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for iface in configuration.networking.interfaces %}
+    - path: /etc/systemd/network/10-{{ iface.name }}.link
+      overwrite: true
+      contents:
+        inline: |
+          [Match]
+          MACAddress={{ iface.mac }}
+
+          [Link]
+          # Assign the specified name to this interface
+          Name={{ iface.name }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endfor %}

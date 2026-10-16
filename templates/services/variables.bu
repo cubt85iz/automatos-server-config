@@ -1,0 +1,38 @@
+---
+# Container Environment Variables Configuration
+## Configures environment variables via systemd-container drop-in files,
+## separating container runtime variables from systemd service variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for container in configuration.services.containers %}
+    {%- if container.variables is defined %}
+    - path: /etc/containers/systemd/{{ container.name }}/{{ container.name }}.container.d/variables.conf
+      overwrite: true
+      contents:
+        inline: |
+          {%- if container.variables.container is defined %}
+          [Container]
+          # Container runtime environment variables
+          {%- for key, value in container.variables.container.items() %}
+          Environment={{ key }}={{ value }}
+          {%- endfor %}
+          {%- endif %}
+
+          {%- if container.variables.service is defined %}
+          [Service]
+          # Systemd service layer environment variables
+          {%- for key, value in container.variables.service.items() %}
+          Environment={{ key }}={{ value }}
+          {%- endfor %}
+          {%- endif %}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endif %}
+    {%- endfor %}

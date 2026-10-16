@@ -1,0 +1,17 @@
+---
+# System Symlinks Configuration
+## Provisions symbolic links based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  links:
+    {%- if configuration.storage is defined and configuration.storage.links is defined %}
+    {%- for link in configuration.storage.links %}
+    - path: {{ link.path }}
+      target: {{ link.target }}
+      overwrite: {{ link.overwrite | default(true) | string | lower }}
+      hard: {{ link.hard | default(false) | string | lower }}
+    {%- endfor %}
+    {%- endif %}

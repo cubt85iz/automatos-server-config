@@ -1,0 +1,23 @@
+---
+# SSH Access Control Configuration
+## Restricts SSH access to local network subnets to prevent unauthorized off-site access
+## based on encrypted server state variables.
+
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- if configuration.networking is defined and configuration.networking.vlans is defined and configuration.networking.vlans.lan is defined %}
+    - path: /etc/ssh/sshd_config.d/90-permit-only-local-access.conf
+      overwrite: true
+      contents:
+        inline: |
+          # Permit SSH access only from the LAN VLAN
+          AllowUsers *@{{ configuration.networking.vlans.lan }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endif %}

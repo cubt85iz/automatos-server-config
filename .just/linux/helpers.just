@@ -190,7 +190,7 @@ is-wsl-environment:
 
   exit 1
 
-# Preprocess Jinja2 butane files by injecting per-server secrets into staging
+# Preprocess all servers (templates + static files) and transpile fragments into Ignition JSON
 [linux]
 [no-cd]
 [private]
@@ -199,11 +199,20 @@ preprocess-templates:
   set -euo pipefail
 
   rm -rf .staging
-  mkdir -p .staging/config
+  mkdir -p .staging
 
-  echo "==> Preprocessing per-server Jinja2 templates..."
-  python3 scripts/preprocess.py config .staging/config
-  echo "Success! Staged preprocessed butane files in .staging/"
+  echo "==> Running bulk preprocessing for all servers..."
+  python3 scripts/preprocess.py servers/ templates/ .staging/ files/
+
+  echo "==> Transpiling preprocessed .bu fragments into .ign files..."
+  find .staging -name "*.bu" | while read -r bu_file; do
+    ign_file="${bu_file%.bu}.ign"
+    # Pass the staging directory for ther server as the files-dir (-d) so relative paths resolve
+    server_staging_dir=$(dirname "$bu_file")
+    butane --strict -d "$server_staging_dir" "$bu_file" > "$ign_file"
+  done
+
+  echo "Success! All server staging directories prepared and transpiled."
 
 # Helper for validate recipe.
 [linux]

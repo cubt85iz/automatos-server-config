@@ -2,22 +2,35 @@
 .generated/**
 .staging/**
 
-# Ignore all Butane & ignition files to prevent accidental secrets exposure.
-*.bu
-*.ign
-
 # Ignore all large or ephemeral files that are not needed for version control.
 *.iso
 *.iso.sig
 *.tar
 
-# Ignore any file containing "secrets" and ending with .yaml or .yml
-*secrets*.yaml
-*secrets*.yml
+# Ignore all files that could conceivably contain secrets.
+*.bu
+*.ign
+*.yaml
+*.yml
 
-# Explicitly allow Butane files for the following directories.
-!config/prometheus/**/*.bu
-!config/shared/**/*.bu
+# Ignore all server contents by default so new servers aren't tracked automatically
+servers/*
+server/*
 
-# Explicitly allow the encrypted secrets file.
-!secrets.enc.yaml
+# Explicitly allow some configuration files.
+!.pre-commit-config.yaml
+!.yamllint.yaml
+
+# Explicitly allow the prometheus server folder (add new servers here as you build them)
+!servers/prometheus/
+
+# Explicitly allow butane files for the prometheus server to be tracked in git.
+!servers/prometheus/*.bu
+
+# Explicitly allow butane files for files and templates to be tracked in git.
+!files/**/*.bu
+!templates/**/*.bu
+
+# Explicitly allow encrypted secrets files to be tracked in Git
+!servers/**/secrets.enc.yaml
+

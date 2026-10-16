@@ -1,0 +1,32 @@
+---
+variant: fcos
+version: 1.6.0
+
+storage:
+  files:
+    {%- for container in configuration.services.containers %}
+    {%- if container.security is defined %}
+    - path: /etc/containers/systemd/{{ container.name }}/{{ container.name }}.container.d/security.conf
+      overwrite: true
+      contents:
+        inline: |
+          [Container]
+          # Enable automatic user namespace mapping for enhanced process isolation
+          UserNS={{ container.security.user_ns }}
+          # Run the container as a non-root user
+          User={{ container.security.user }}
+          # Remove specified kernel capabilities to follow the principle of least privilege
+          {%- for cap in container.security.drop_capability %}
+          DropCapability={{ cap }}
+          {%- endfor %}
+          # Prevent processes from gaining new privileges
+          NoNewPrivileges={{ container.security.no_new_privileges | string | lower }}
+          # Limit the maximum number of processes
+          PidsLimit={{ container.security.pids_limit }}
+      user:
+        name: root
+      group:
+        name: root
+      mode: 0644
+    {%- endif %}
+    {%- endfor %}
