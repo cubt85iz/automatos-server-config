@@ -60,7 +60,7 @@ Fedora CoreOS is an automatically updating, minimal, container-focused operating
 
 ### Build & Provisioning
 
-* `just run`: Executes the full lifecycle pipeline (`clean` $\rightarrow$ `lint` $\rightarrow$ `build` $\rightarrow$ `validate` $\rightarrow$ `serve`) and automatically cleans up on exit.
+* `just run`: Executes the full lifecycle pipeline (`clean` → `lint` → `build` → `validate` → `serve`) and automatically cleans up on exit.
 * `just build`: Preprocesses templates, stages static assets, transpiles fragments into `.ign` files concurrently, and compiles each server's primary `main.bu` manifest into its final deployment Ignition configuration.
 * `just validate`: Validates all generated Ignition JSON files using the official CoreOS validation container.
 * `just serve`: Spins up a local Python HTTP server inside `.generated/` to host and serve the compiled Ignition files for server deployment.
