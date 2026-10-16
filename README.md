@@ -94,24 +94,28 @@ Fedora CoreOS is an automatically updating, minimal, container-focused operating
 To spin up a new Fedora CoreOS node using this repository:
 
 1. **Create a Server Directory:**
+
 Create a new folder under `servers/` matching your host's name:
+
 ```bash
 mkdir -p servers/my-new-node/files
 
 ```
 
-
 2. **Define Your Secrets:**
+
 Create a `servers/my-new-node/secrets.yaml` file containing your node-specific variables under the `configuration` root block (refer to the [Secrets Specification Schema Guide](schemas/secrets.schema.md) for field details).
 Validate your file against the schema:
+
 ```bash
 just validate-secrets
 
 ```
 
-
 3. **Create the Primary Manifest (`main.bu`):**
+
 Create a `servers/my-new-node/main.bu` file that uses Ignition configuration merging to pull in the modular fragments generated from your templates:
+
 ```yaml
 variant: fcos
 version: 1.6.0
@@ -125,20 +129,21 @@ ignition:
 
 ```
 
-
 4. **Build the Ignition Configuration:**
+
 Run the build pipeline via `just`:
+
 ```bash
 just run
 
 ```
 
-
 Your compiled, deployment-ready Ignition file will be served on port 8000 `http://localhost:8000/my-new-node.ign`.
 
-
 5. **Deploy to a Server:**
+
 Deploy to a server using `coreos-installer`:
+
 ```bash
 sudo coreos-installer install /dev/sda --ignition-url http://my-host-pc:8000/my-new-node.ign --insecure-ignition
 ```
