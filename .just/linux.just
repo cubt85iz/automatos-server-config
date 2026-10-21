@@ -5,7 +5,7 @@ import "shared/output.just"
 [linux]
 [no-cd]
 [group('Build & Provisioning')]
-build: preprocess-templates
+build:
   #!/usr/bin/env bash
   set -euo pipefail
   shopt -s globstar
@@ -16,9 +16,9 @@ build: preprocess-templates
   MAX_JOBS=8
   JOBS_STATUS=0
 
-  # Find & transpile non-primary butane files from staging.
-  readarray -t BUTANE_FILES < <(ls -1 .staging/**/*.bu | grep -v main.bu | sort -r)
-  for FILE in ${BUTANE_FILES[@]}; do
+  # Find & transpile butane fragments in servers/ directories recursively.
+  mapfile -t FRAGMENTS < <(ls -1 servers/**/*.bu 2>/dev/null | grep -v '\.enc\.bu$' | grep -v '/main\.bu$' | sort)
+  for FILE in "${FRAGMENTS[@]}"; do  
     while (( ${#JOBS[@]} >= MAX_JOBS )); do
       for INDEX in ${!JOBS[@]}; do
         if wait "${JOBS[$INDEX]}"; then
@@ -31,8 +31,8 @@ build: preprocess-templates
       sleep 0.1
     done
   
-    SERVER_STAGING_DIR="$(dirname "$FILE")"
-    just build-ignition "$FILE" "$SERVER_STAGING_DIR" &
+    SERVER_DIR="$(dirname "$FILE")"
+    just build-ignition "$FILE" "$SERVER_DIR" &
     JOBS+=("$!")
   done
 
@@ -51,13 +51,13 @@ build: preprocess-templates
     exit $JOBS_STATUS
   fi
 
-  # Find & transpile the staged main.bu for each server configuration
-  readarray -t BUTANE_FILES < <(ls -1 .staging/**/main.bu | sort -r)
-  for FILE in ${BUTANE_FILES[@]}; do
-    SERVER_STAGING_DIR="$(dirname "$FILE")"
+  # Find & transpile the main.bu for each server configuration
+  mapfile -t MAINS < <(ls -1 servers/**/main.bu 2>/dev/null | sort)
+  for FILE in "${MAINS[@]}"; do
+    SERVER_DIR="$(dirname "$FILE")"
     
     # Compile directly using the staged main.bu and its co-located .ign fragments
-    just build-ignition "$FILE" "$SERVER_STAGING_DIR"
+    just build-ignition "$FILE" "$SERVER_DIR"
   done
   
 # Remove all rendered ignition files.
@@ -65,46 +65,13 @@ build: preprocess-templates
 [no-cd]
 [group('Maintenance & Utility')]
 clean:
-  @rm -rf .generated .staging
+  @rm -rf .generated
 
-# Creates archives for configurations
-[linux]
-[no-cd]
-create-archives *config:
-  #!/usr/bin/env bash
-
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
-  set -euo pipefail
-
-  # Create directory for archives
-  mkdir -p config/.archives
-
-  FOLDERS=()
-  if [ -z "{{ config }}" ]; then
-
-    # Read list of folders in `config` into array
-    readarray -t FOLDERS < <(ls -1 -d config/*/)
-  else
-
-    # Read list of configs from command-line
-    read -a FOLDERS <<< "{{ config }}"
-    FOLDERS=(${FOLDERS[@]/#/config\/})
-    FOLDERS=(${FOLDERS[@]/%/\/})
-  fi
-
-  # Iterate over array and create archives.
-  for FOLDER in "${FOLDERS[@]}"; do
-    ARCHIVE="config/.archives/$(basename $FOLDER).tar"
-    PATTERN=${FOLDER%*/}*
-    tar cf "$ARCHIVE" $PATTERN
-    echo "Created archive: $ARCHIVE"
-  done
-
-# Decrypt secrets.enc.yaml using Mozilla SOPS and the post-quantum age private key from Bitwarden
+# Decrypt all Butane files using Mozilla SOPS and the private age key from Bitwarden
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-decrypt-secrets folder input="secrets.enc.yaml" output="secrets.yaml":
+decrypt folder:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -121,12 +88,13 @@ decrypt-secrets folder input="secrets.enc.yaml" output="secrets.yaml":
       WAS_LOCKED=true
   fi
 
-  # Ensure locking on exit if vault was unlocked during execution
-  trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  if [ "$WAS_LOCKED" = "true" ]; then
+      trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  fi
 
   ITEM_NAME="{{folder}}-age-key"
 
-  echo "==> Fetching latest age private key from Bitwarden..."
+  echo "==> Fetching latest age private key from Bitwarden for '$ITEM_NAME'..."
   ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
   if [ -z "$ITEM_JSON" ]; then
       echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
@@ -134,25 +102,29 @@ decrypt-secrets folder input="secrets.enc.yaml" output="secrets.yaml":
   fi
 
   PRIV_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PrivateKey") | .value')
-
   if [ -z "$PRIV_KEY_CONTENT" ] || [ "$PRIV_KEY_CONTENT" == "null" ]; then
       echo "Error: PrivateKey field not found in Bitwarden item '$ITEM_NAME'." >&2
       exit 1
   fi
 
-  # Clean up path variables
-  CONFIG_DIR="config/{{folder}}"
-  INPUT_FILE="$CONFIG_DIR/{{input}}"
-  OUTPUT_FILE="$CONFIG_DIR/{{output}}"
-  
-  if [ ! -f "$INPUT_FILE" ]; then
-      echo "Error: Input file '$INPUT_FILE' does not exist." >&2
+  export SOPS_AGE_KEY="$PRIV_KEY_CONTENT"
+
+  SERVERS_DIR="servers/{{folder}}"
+  if [ ! -d "$SERVERS_DIR" ]; then
+      echo "Error: Directory '$SERVERS_DIR' does not exist." >&2
       exit 1
   fi
 
-  echo "==> Decrypting $INPUT_FILE into $OUTPUT_FILE using SOPS with age..."
-  SOPS_AGE_KEY="$PRIV_KEY_CONTENT" sops --decrypt "$INPUT_FILE" > "$OUTPUT_FILE"
-  echo "Success! Decrypted file: $OUTPUT_FILE"
+  echo "==> Finding and decrypting all .enc.bu files in $SERVERS_DIR..."
+  
+  while IFS= read -r -d '' input_file; do
+      output_file="${input_file%.enc.bu}.bu"
+      
+      echo "    Decrypting: $input_file -> $output_file"
+      sops --decrypt "$input_file" > "$output_file"
+  done < <(find "$SERVERS_DIR" -type f -name "*.enc.bu" -print0)
+
+  echo "Success! All Butane files decrypted successfully."
 
 [linux]
 [no-cd]
@@ -169,7 +141,7 @@ diff server:
   shopt -s globstar
 
   # Examine each configuration file.
-  for FILE in config/{{ server }}/**/*.bu; do
+  for FILE in servers/{{ server }}/**/*.bu; do
 
     # Store all paths found in the current configuration file.
     readarray -t CONFIGFILES < <(yq -r '.storage.files[].path' "$FILE")
@@ -211,11 +183,11 @@ diff server:
 download-iso:
   @podman run --pull always --rm -v .:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
 
-# Encrypt secrets.yaml using Mozilla SOPS and the post-quantum age public key from Bitwarden
+# Encrypt all Butane files using Mozilla SOPS, age from Bitwarden, and comment exclusion rules
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-encrypt-secrets folder input="secrets.yaml" output="secrets.enc.yaml":
+encrypt folder:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -251,43 +223,31 @@ encrypt-secrets folder input="secrets.yaml" output="secrets.enc.yaml":
       exit 1
   fi
 
-  # Clean up path variables
   SERVERS_DIR="servers/{{folder}}"
-  INPUT_FILE="$SERVERS_DIR/{{input}}"
-  OUTPUT_FILE="$SERVERS_DIR/{{output}}"
-  
-  if [ ! -f "$INPUT_FILE" ]; then
-      echo "Error: Input file '$INPUT_FILE' does not exist." >&2
+  if [ ! -d "$SERVERS_DIR" ]; then
+      echo "Error: Directory '$SERVERS_DIR' does not exist." >&2
       exit 1
   fi
 
-  echo "==> Encrypting $INPUT_FILE into $OUTPUT_FILE using SOPS with age..."
-  sops --encrypt --age "$PUB_KEY_CONTENT" "$INPUT_FILE" > "$OUTPUT_FILE"
-  echo "Success! Created encrypted file: $OUTPUT_FILE"
+  echo "==> Finding and encrypting all .bu files in $SERVERS_DIR..."
+  
+  # Find all .bu files and encrypt them as YAML, preserving comments via regex
+  while IFS= read -r -d '' input_file; do
+      if [[ "$input_file" == *.enc.bu ]]; then
+          continue
+      fi
 
-# Extract archives for configurations
-[linux]
-[no-cd]
-extract-archives *config:
-  #!/usr/bin/env bash
+      output_file="${input_file%.bu}.enc.bu"
+      
+      echo "    Encrypting: $input_file -> $output_file"
+      sops --encrypt \
+        --input-type yaml \
+        --output-type yaml \
+        --age "$PUB_KEY_CONTENT" \
+        "$input_file" > "$output_file"
+  done < <(find "$SERVERS_DIR" -type f -name "*.bu" -print0)
 
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
-  set -euo pipefail
-
-  ARCHIVES=()
-  if [ -z "{{ config }}" ]; then
-    readarray -t ARCHIVES < <(ls -1 {{ justfile_directory() }}/config/.archives/*.tar)
-  else
-    read -a ARCHIVES <<< "{{ config }}"
-    ARCHIVES=(${ARCHIVES[@]/#/config\/.archives\/})
-    ARCHIVES=(${ARCHIVES[@]/%/.tar})
-  fi
-
-  # Iterate over array and extract archives.
-  for ARCHIVE in "${ARCHIVES[@]}"; do
-    tar xf "$ARCHIVE" -C "{{ justfile_directory() }}"
-    echo "Extracted archive: $ARCHIVE"
-  done
+  echo "Success! All Butane files encrypted successfully."
 
 # Generates a post-quantum age key pair for encrypting and decrypting configuration files
 [linux]
@@ -359,7 +319,7 @@ generate-age-key folder:
 [linux]
 [no-cd]
 [group('Verification & Diagnostics')]
-lint: preprocess-templates
+lint:
   #!/usr/bin/env bash
 
   # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
@@ -377,7 +337,7 @@ lint: preprocess-templates
   fi
 
   shopt -s globstar
-  readarray -t BUTANE_FILES < <(ls -1 .staging/**/*.bu | sort -r)
+  readarray -t BUTANE_FILES < <(ls -1 servers/**/*.bu 2>/dev/null | grep -v '\.enc\.bu$' | sort)
 
   if [ $HAS_YAMLLINT -ne 0 ]; then
     podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "${BUTANE_FILES[@]}"
@@ -387,31 +347,6 @@ lint: preprocess-templates
 
   echo "All preprocessed butane files passed linting checks."
 
-# Rebuilds the custom Containerfile image and reprovisions the Toolbx container
-[linux]
-[no-cd]
-[group('Maintenance & Utility')]
-provision-toolbox:
-  #!/usr/bin/env bash
-  set -euo pipefail
-
-  CONTAINER_NAME="fcos-builder"
-  IMAGE_NAME="localhost/fcos-builder:latest"
-
-  echo "==> Checking for existing Toolbx container '$CONTAINER_NAME'..."
-  if podman ps -a --format '{{{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-      echo "==> Removing existing container..."
-      toolbox rm -f "$CONTAINER_NAME" 2>/dev/null || podman rm -f "$CONTAINER_NAME"
-  fi
-
-  echo "==> Building custom OCI image ($IMAGE_NAME)..."
-  podman build -t "$IMAGE_NAME" .
-
-  echo "==> Creating fresh Toolbx container..."
-  toolbox create --container "$CONTAINER_NAME" --image "$IMAGE_NAME"
-
-  echo "Success! Toolbx '$CONTAINER_NAME' has been successfully reprovisioned."
-  
 # Rotate an existing age key with a new post-quantum keypair and update its entry in Bitwarden
 [linux]
 [no-cd]
@@ -575,14 +510,3 @@ validate:
     just display-error "Unable to locate ignition files directory."
     exit 1
   fi
-
-# Validate plaintext secrets.yaml files against the JSON schema
-[linux]
-[no-cd]
-[group('Verification & Diagnostics')]
-validate-secrets:
-  #!/usr/bin/env bash
-  set -euo pipefail
-
-  echo "==> Running JSON schema validation on secrets files..."
-  python3 scripts/validate_secrets.py

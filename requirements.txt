@@ -1,4 +1,2 @@
-jinja2
 PyYAML
-jsonschema
 pre-commit

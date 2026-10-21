@@ -1,9 +1,0 @@
-repos:
-  - repo: local
-    hooks:
-      - id: sops-auto-encrypt
-        name: Auto-encrypt SOPS secrets
-        language: system
-        entry: python3 scripts/encrypt_secrets.py
-        files: servers/.*/secrets\.yaml$
-        pass_filenames: false

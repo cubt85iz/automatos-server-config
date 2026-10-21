@@ -55,7 +55,7 @@ is-content-appended $SERVER $FILE $CONFIGFILE:
       # is missing, then add it to the `MISSING_CONTENT` array for displaying later.
       MISSING_CONTENT=()
       for CONTENT in "${APPENDEDCONTENT[@]}"; do
-        if ! ssh $SERVER "grep -q \"$CONTENT\" \"$CONFIGFILE\""; then
+        if ! printf "%s" "$CONTENT" | ssh $SERVER "grep -qFf - '$CONFIGFILE'"; then
           MISSING_CONTENT+=("$CONTENT")
         fi
       done
@@ -95,13 +95,11 @@ is-content-overwritten $SERVER $FILE $CONFIGFILE:
     if ssh $SERVER "test -e '$CONFIGFILE' || sudo test -e '$CONFIGFILE'"; then
 
       # Calculate checksum of server content
-      if SERVER_CSUM=$((ssh $SERVER "sha256sum '$CONFIGFILE' 2>/dev/null || \
-        sudo sha256sum '$CONFIGFILE'") | cut -d' ' -f1); then
-
+      if SERVER_CSUM=$(ssh $SERVER "sha256sum '$CONFIGFILE' 2>/dev/null || sudo sha256sum '$CONFIGFILE'" | cut -d' ' -f1); then
         # Test checksums for equality. If not equal, generate a diff to illustrate the differences.
         if [ "$CONTENT_CSUM" != "$SERVER_CSUM" ]; then
           just display-error "Content differs for file: $CONFIGFILE"
-          if ! DIFFERENCE=$(ssh $SERVER "echo \"$CONTENT\" | sudo diff - \"$CONFIGFILE\""); then
+          if ! printf "%s" "$CONTENT" | ssh $SERVER "sudo diff - '$CONFIGFILE' -" ; then
             echo "$DIFFERENCE"
             echo "Checksums: $CONTENT_CSUM (configuration), $SERVER_CSUM ($SERVER)"
             echo ""
@@ -189,30 +187,6 @@ is-wsl-environment:
   fi
 
   exit 1
-
-# Preprocess all servers (templates + static files) and transpile fragments into Ignition JSON
-[linux]
-[no-cd]
-[private]
-preprocess-templates:
-  #!/usr/bin/env bash
-  set -euo pipefail
-
-  rm -rf .staging
-  mkdir -p .staging
-
-  echo "==> Running bulk preprocessing for all servers..."
-  python3 scripts/preprocess.py servers/ templates/ .staging/ files/
-
-  echo "==> Transpiling preprocessed .bu fragments into .ign files..."
-  find .staging -name "*.bu" | while read -r bu_file; do
-    ign_file="${bu_file%.bu}.ign"
-    # Pass the staging directory for ther server as the files-dir (-d) so relative paths resolve
-    server_staging_dir=$(dirname "$bu_file")
-    butane --strict -d "$server_staging_dir" "$bu_file" > "$ign_file"
-  done
-
-  echo "Success! All server staging directories prepared and transpiled."
 
 # Helper for validate recipe.
 [linux]
