@@ -1,15 +1,25 @@
 # Fedora CoreOS Infrastructure Blueprint
 
-Declarative, reproducible, and secure homelab infrastructure managed via **Fedora CoreOS**, **Butane/Ignition**, **Jinja2 templates**, **Mozilla SOPS**, and orchestrated locally using `just`.
+Declarative and reproducible homelab infrastructure managed via **Fedora CoreOS** and **Butane/Ignition**, orchestrated locally using `just` and `podman`.
 
 ---
 
 ## 🚀 Project Objectives
 
-* **Declarative Infrastructure:** Define the entire operating system state, storage layout, networking, and container topology as code.
-* **Modularity & Reusability:** Separate core system blueprints (`templates/`) from server-specific states (`servers/`) to eliminate configuration duplication.
-* **Zero-Knowledge Secrets Management:** Encrypt sensitive credentials (API keys, private SSH host keys, backup passphrases) using **Mozilla SOPS**, **Age**, and **Bitwarden**.
-* **Immutable Automation:** Compile, validate, and build Ignition provisioning files locally using automated task workflows.
+* **Declarative Infrastructure:** Define the entire operating system state, storage layout, and networking as code using Butane configurations.
+* **Modular Configuration:** Use Butane fragments located in `servers/` to define node-specific states.
+* **Secure Secrets Management:** Protect sensitive configuration data by encrypting Butane fragments using **Mozilla SOPS** and **Age**.
+* **Automated Build Pipeline:** Compile and validate Ignition provisioning files locally using parallelized `just` workflows and `podman`.
+
+---
+
+## 🏛️ Architectural Overview
+
+The project follows a **Fragment-to-Provision** workflow designed for modularity and security:
+
+1. **Configuration (Input):** System state is defined in small, modular Butane fragments (`.bu`). Sensitive data is stored in encrypted fragments (`.enc.bu`) managed by **Mozilla SOPS** and **Age**.
+2. **Transpilation (Build):** The `just` task runner orchestrates a parallel build process. It utilizes **Podman** to run the official **Butane** container, ensuring the build environment is hermetic and consistent across different host machines.
+3. **Provisioning (Output):** The resulting Ignition JSON files are served via a local **Python HTTP server**, allowing Fedora CoreOS nodes to fetch their configuration during the initial boot process.
 
 ---
 
@@ -17,133 +27,111 @@ Declarative, reproducible, and secure homelab infrastructure managed via **Fedor
 
 ```text
 .
-├── files/          # Global static files, systemd units, and scripts
-├── schemas/        # Schema files (secrets.schema.json & secrets.schema.md)
-├── scripts/        # Automation tooling (preprocessing templates, encrypting secrets)
-├── servers/        # Node-specific configurations and encrypted secrets
-├── templates/      # Modular Jinja2/Butane blueprint fragments
-├── justfile        # Task runner definitions for building and validation
-└── README.md       # Project documentation
-
+├── .just/            # Platform-specific task definitions
+│   ├── linux/        # Linux-specific helpers
+│   └── shared/       # Shared output/task helpers
+├── servers/           # Node-specific Butane configuration fragments (.bu and .enc.bu)
+├── requirements.txt    # Python dependencies
+├── justfile           # Main task runner definitions
+└── README.md          # Project documentation
 ```
 
-* `files/`: Contains raw, static files (scripts, configurations) that do not require templating and are copied into staging during builds.
-* `schemas/`: Houses specification documentation, including [`schemas/secrets.schema.md`](schemas/secrets.schema.md) (the human-readable spec) and `secrets.schema.json` (the programmatic validation schema), detailing data types and structures for server configurations.
-* `scripts/`: Automation helper scripts, including `preprocess.py` (which merges secrets with templates) and `encrypt_secrets.py` (for SOPS).
-* `servers/`: Node-specific inventories (e.g., `servers/prometheus/`). Each server contains its own primary `main.bu` manifest and encrypted `secrets.enc.yaml`.
-* `templates/`: Modular `.bu` and `.j2` template fragments organized by concern (firewall, networking, security, storage, container services).
+* `.just/`: Contains platform-specific logic and helper modules for the `just` task runner.
+* `servers/`: Contains the Butane configuration files. Standard fragments use `.bu`, while sensitive configurations are stored as encrypted `.enc.bu` files.
+* `justfile`: The entry point for all automation tasks.
 
 ---
 
-## 🏛️ Architectural Overview
+## 🛠️ Toolchain
 
-### 1. Fedora CoreOS (FCOS)
-
-Fedora CoreOS is an automatically updating, minimal, container-focused operating system designed for running containerized workloads securely at scale. The root filesystem is immutable, meaning all system configuration, user accounts, and container deployment definitions must be provisioned during first boot.
-
-### 2. Butane & Ignition
-
-* **Butane:** A human-friendly YAML-based syntax wrapper designed to prevent manual errors in low-level JSON configuration files.
-* **Ignition:** The provisioning utility read by FCOS on its first boot. Ignition configures disks, creates system users, sets up ssh keys, writes files, and provisions systemd/Podman Quadlet units.
-
-### 3. Mozilla SOPS, Age & Bitwarden
-
-* **Age:** A modern, secure file encryption tool supporting post-quantum primitives (ML-KEM-768 + X25519).
-* **Mozilla SOPS:** Integrates with Age to encrypt individual values within YAML files while leaving structure and keys readable.
-* **Bitwarden CLI:** Used as a secure remote backend to store and retrieve generated post-quantum Age key pairs for server environments.
+* **[just](https://github.com/casey/just):** Command runner to execute tasks.
+* **[podman](https://podman.io/):** Used to pull and run the Butane/Validation containers.
+* **[Butane](https://github.com/coreos/butane):** For transpiling configuration into Ignition files.
+* **[Mozilla SOPS](https://github.com/getsops/sops):** For managing encrypted secrets.
+* **[Age](https://github.com/age-encryption/age):** Post-quantum encryption backend for SOPS.
+* **[Bitwarden CLI](https://github.com/bitwarden/clients):** Used to securely store and retrieve encryption keys.
+* **Python 3:** Used to serve the generated Ignition files via `http.server`.
 
 ---
 
-## 🛠️ Just Recipes & Functions
+## 📖 Just Recipes
 
-`just` is a modern command runner (a clean, language-agnostic alternative to `make`) used to execute project workflows defined in the `justfile`.
+### 🏗️ Build & Provisioning
 
-### Build & Provisioning
+| Command | Description |
+| :--- | :--- |
+| `just run` | **The Full Pipeline:** Performs a clean, lints, builds, validates, and serves the ignition files. Cleans up automatically on exit. |
+| `just build` | Parallelly transpiles all `.bu` fragments and `main.bu` files into Ignition files using Podman. |
+| `just serve` | Starts a local Python HTTP server to host the generated `.ign` files for node provisioning. |
+| `just validate` | Uses `ignition-validate` via Podman to verify the integrity of the generated files. |
 
-* `just run`: Executes the full lifecycle pipeline (`clean` → `lint` → `build` → `validate` → `serve`) and automatically cleans up on exit.
-* `just build`: Preprocesses templates, stages static assets, transpiles fragments into `.ign` files concurrently, and compiles each server's primary `main.bu` manifest into its final deployment Ignition configuration.
-* `just validate`: Validates all generated Ignition JSON files using the official CoreOS validation container.
-* `just serve`: Spins up a local Python HTTP server inside `.generated/` to host and serve the compiled Ignition files for server deployment.
+### 🔐 Secrets & Key Management
 
-### Secrets & Key Management
+*Note: These commands interact with your Bitwarden vault.*
 
-* `just generate-age-key <folder>`: Generates a post-quantum Age key pair and securely stores it in Bitwarden.
-* `just rotate-age-key <folder>`: Rotates an existing server's age key pair with a new post-quantum pair and updates Bitwarden.
-* `just encrypt-secrets <folder>`: Encrypts a server's local plaintext `secrets.yaml` into `secrets.enc.yaml` using its associated public Age key from Bitwarden.
-* `just decrypt-secrets <folder>`: Decrypts a server's `secrets.enc.yaml` back into `secrets.yaml` using the private Age key retrieved from Bitwarden.
+| Command | Description |
+| :--- | :--- |
+| `just generate-age-key <folder>` | Generates a post-quantum age key pair and uploads it to Bitwarden. |
+| `just rotate-age-key <folder>` | Rotates an existing age key with a new post-quantum pair and updates Bitwarden. |
+| `just encrypt <folder>` | Encrypts all `.bu` files in the specified folder using SOPS and the age key from Bitwarden. |
+| `just decrypt <folder>` | Fetches the age key from Bitwarden and decrypts `.enc.bu` files into plain `.bu` files. |
 
-### Verification & Diagnostics
+### 🔍 Verification & Diagnostics
 
-* `just validate-secrets`: Validates all plaintext secrets.yaml files against the defined JSON schema rules.
-* `just lint`: Runs `yamllint` locally or via container across all preprocessed Butane fragments.
-* `just diff <server>`: Compares the declared configuration state against a running live server to detect configuration drift.
+| Command | Description |
+| :--- | :--- |
+| `just lint` | Validates the YAML syntax of all Butane fragments using `yamllint`. |
+| `just diff <server>` | Detects configuration drift by comparing current fragments against defined storage files. |
 
-### Maintenance & Utility
+### 🔧 Maintenance & Utility
 
-* `just update`: Pulls and updates submodules to their latest remote versions.
-* `just clean`: Removes all local build and staging directories (`.generated`, `.staging`).
-* `just download-iso`: Downloads the latest stable Fedora CoreOS live ISO using the official coreos-installer.
-* `just provision-toolbox`: Rebuilds the custom OCI builder image and recreates the local Toolbx container (`fcos-builder`).
-* `just setup`: Bootstraps the development environment packages (Butane, Podman, YAMLLint, Python) on Ubuntu/WSL2 distributions.
-* `just create-archives` / `just extract-archives`: Compresses or extracts configuration tarball archives.
+| Command | Description |
+| :--- | :--- |
+| `just setup` | Prepares a WSL2/Ubuntu environment by installing required system dependencies. |
+| `just update` | Updates the `.just/shared` submodule to its latest version. |
+| `just download-iso` | Uses Podman to download the latest stable Fedora CoreOS ISO. |
+| `just clean` | Removes all generated Ignition files and directories. |
 
 ---
 
-## ⚙️ How to Add a New Server
+## ⚙️ Workflow
 
-To spin up a new Fedora CoreOS node using this repository:
+1. **Provisioning Environment:** Run `just setup` (on WSL2/Ubuntu) to ensure all tools are present.
+2. **Secret Setup:** Use `just generate-age-key <folder>` to initialize your security layer.
+3. **Configuration:** Create your modular `.bu` fragments in `servers/<folder>/`.
+    * **Note:** Each server configuration **must** include a `main.bu` file to serve as the primary entry point for the build process.
+    * Encrypt any sensitive configuration files using `just encrypt <folder>`.
+4. **Deployment:** Run `just run` to clean, build, validate, and host the files in one seamless command.
 
-1. **Create a Server Directory:**
+---
 
-Create a new folder under `servers/` matching your host's name:
+## 💡 Example Server Deployment
 
-```bash
-mkdir -p servers/my-new-node/files
-
-```
-
-2. **Define Your Secrets:**
-
-Create a `servers/my-new-node/secrets.yaml` file containing your node-specific variables under the `configuration` root block (refer to the [Secrets Specification Schema Guide](schemas/secrets.schema.md) for field details).
-Validate your file against the schema:
-
-```bash
-just validate-secrets
-
-```
-
-3. **Create the Primary Manifest (`main.bu`):**
-
-Create a `servers/my-new-node/main.bu` file that uses Ignition configuration merging to pull in the modular fragments generated from your templates:
+To deploy a new server named `web-node`, create the directory `servers/web-node/` and add a `main.bu` file:
 
 ```yaml
+# servers/web-node/main.bu
 variant: fcos
-version: 1.6.0
+version: 1.5.0
 
-ignition:
-  config:
-    merge:
-      - local: security/users.ign
-      - local: ssh/host-keys.ign
-      # ... include other required fragments ...
+passwd:
+  users:
+    - name: admin
+      groups: [wheel, sudo]
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3Nza... # Replace with your actual public key
 
+storage:
+  files:
+    - path: /etc/hostname
+      contents:
+        inline: web-node-01
 ```
 
-4. **Build the Ignition Configuration:**
-
-Run the build pipeline via `just`:
+Once the file is created, simply run:
 
 ```bash
 just run
-
 ```
 
-Your compiled, deployment-ready Ignition file will be served on port 8000 `http://localhost:8000/my-new-node.ign`.
-
-5. **Deploy to a Server:**
-
-Deploy to a server using `coreos-installer`:
-
-```bash
-sudo coreos-installer install /dev/sda --ignition-url http://my-host-pc:8000/my-new-node.ign --insecure-ignition
-```
+The system will generate `web-node-01.ign` and serve it at `http://<your-ip>:8000/web-node-01.ign`.
