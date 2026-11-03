@@ -31,8 +31,8 @@ build:
       sleep 0.1
     done
   
-    SERVER_DIR="$(dirname "$FILE")"
-    just build-ignition "$FILE" "$SERVER_DIR" &
+    PROFILE_DIR="$(dirname "$FILE")"
+    just build-ignition "$FILE" "$PROFILE_DIR" &
     JOBS+=("$!")
   done
 
@@ -54,10 +54,10 @@ build:
   # Find & transpile the main.bu for each server configuration
   mapfile -t MAINS < <(ls -1 servers/**/main.bu 2>/dev/null | sort)
   for FILE in "${MAINS[@]}"; do
-    SERVER_DIR="$(dirname "$FILE")"
+    PROFILE_DIR="$(dirname "$FILE")"
     
     # Compile directly using the staged main.bu and its co-located .ign fragments
-    just build-ignition "$FILE" "$SERVER_DIR"
+    just build-ignition "$FILE" "$PROFILE_DIR"
   done
   
 # Remove all rendered ignition files.
@@ -71,7 +71,7 @@ clean:
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-decrypt folder:
+decrypt profile:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -92,7 +92,7 @@ decrypt folder:
       trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
   fi
 
-  ITEM_NAME="{{folder}}-age-key"
+  ITEM_NAME="{{profile}}-age-key"
 
   echo "==> Fetching latest age private key from Bitwarden for '$ITEM_NAME'..."
   ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
@@ -109,7 +109,7 @@ decrypt folder:
 
   export SOPS_AGE_KEY="$PRIV_KEY_CONTENT"
 
-  SERVERS_DIR="servers/{{folder}}"
+  SERVERS_DIR="servers/{{profile}}"
   if [ ! -d "$SERVERS_DIR" ]; then
       echo "Error: Directory '$SERVERS_DIR' does not exist." >&2
       exit 1
@@ -121,15 +121,154 @@ decrypt folder:
       output_file="${input_file%.enc.bu}.bu"
       
       echo "    Decrypting: $input_file -> $output_file"
-      sops --decrypt "$input_file" > "$output_file"
+      {
+        echo "---"
+        sops decrypt --input-type yaml --output-type yaml "$input_file" | \
+          yq eval --indent 2 '.' - 
+      } > "$output_file"
   done < <(find "$SERVERS_DIR" -type f -name "*.enc.bu" -print0)
 
   echo "Success! All Butane files decrypted successfully."
 
+# Detects differences between encrypted files and their co-located unencrypted copies for a profile
 [linux]
 [no-cd]
 [group('Verification & Diagnostics')]
-diff server:
+diff profile:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  PROFILE_DIR="servers/{{ profile }}"
+  if [ ! -d "$PROFILE_DIR" ]; then
+      echo "Error: Directory '$PROFILE_DIR' does not exist." >&2
+      exit 1
+  fi
+
+  # Ensure Bitwarden is unlocked and grab private key once for the session
+  BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+  if [ "$BW_STATUS" = "unauthenticated" ]; then
+      echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+      exit 1
+  fi
+
+  WAS_LOCKED=false
+  if [ "$BW_STATUS" = "locked" ]; then
+      echo "==> Bitwarden vault is locked. Prompting to unlock..."
+      export BW_SESSION=$(bw unlock --raw)
+      WAS_LOCKED=true
+  fi
+
+  if [ "$WAS_LOCKED" = "true" ]; then
+      trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+  fi
+
+  ITEM_NAME="{{ profile }}-age-key"
+  ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
+  if [ -z "$ITEM_JSON" ]; then
+      echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
+      exit 1
+  fi
+
+  PRIV_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PrivateKey") | .value')
+  if [ -z "$PRIV_KEY_CONTENT" ] || [ "$PRIV_KEY_CONTENT" == "null" ]; then
+      echo "Error: PrivateKey field not found in Bitwarden item '$ITEM_NAME'." >&2
+      exit 1
+  fi
+
+  export SOPS_AGE_KEY="$PRIV_KEY_CONTENT"
+
+  HAS_DIFF=0
+  shopt -s globstar
+  while IFS= read -r -d '' enc_file; do
+      echo "==> Checking diff for: $enc_file"
+      if ! just diff-file "{{ profile }}" "$enc_file"; then
+          HAS_DIFF=1
+      fi
+  done < <(find "$PROFILE_DIR" -type f -name "*.enc.bu" -print0)
+  shopt -u globstar
+
+  if [ $HAS_DIFF -eq 0 ]; then
+      echo "==> No changes found between encrypted and unencrypted files for '{{ profile }}'."
+  else
+      echo "==> Differences detected."
+  fi
+
+# Decrypts an encrypted file to a temporary location and compares it with its unencrypted counterpart
+[linux]
+[no-cd]
+[group('Verification & Diagnostics')]
+diff-file profile enc_path:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  PROFILE="{{ profile }}"
+  ENC_PATH="{{ enc_path }}"
+  UNENC_PATH="${ENC_PATH%.enc.bu}.bu"
+
+  if [ ! -f "$UNENC_PATH" ]; then
+      echo "Error: Unencrypted counterpart '$UNENC_PATH' does not exist." >&2
+      exit 1
+  fi
+
+  # If SOPS_AGE_KEY is not already exported in the environment, fetch it from Bitwarden
+  if [ -z "${SOPS_AGE_KEY:-}" ]; then
+      BW_STATUS=$(bw status 2>/dev/null | jq -r '.status // "unauthenticated"')
+      if [ "$BW_STATUS" = "unauthenticated" ]; then
+          echo "Error: Bitwarden CLI is not logged in. Please run 'bw login' first." >&2
+          exit 1
+      fi
+
+      WAS_LOCKED=false
+      if [ "$BW_STATUS" = "locked" ]; then
+          echo "==> Bitwarden vault is locked. Prompting to unlock..."
+          export BW_SESSION=$(bw unlock --raw)
+          WAS_LOCKED=true
+      fi
+
+      if [ "$WAS_LOCKED" = "true" ]; then
+          trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
+      fi
+
+      ITEM_NAME="${PROFILE}-age-key"
+      ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
+      if [ -z "$ITEM_JSON" ]; then
+          echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
+          exit 1
+      fi
+
+      PRIV_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PrivateKey") | .value')
+      if [ -z "$PRIV_KEY_CONTENT" ] || [ "$PRIV_KEY_CONTENT" == "null" ]; then
+          echo "Error: PrivateKey field not found in Bitwarden item '$ITEM_NAME'." >&2
+          exit 1
+      fi
+
+      export SOPS_AGE_KEY="$PRIV_KEY_CONTENT"
+  fi
+
+  # Create a temporary file for decrypted output normalization
+  TEMP_DEC=$(mktemp)
+  trap 'rm -f "$TEMP_DEC"' EXIT
+
+  {
+    echo "---"
+    sops decrypt --input-type yaml --output-type yaml "$ENC_PATH" | \
+      yq eval --indent 2 '.' -
+  } > "$TEMP_DEC"
+
+  # Compare normalized decrypted content against the live unencrypted file
+  if diff -u "$UNENC_PATH" "$TEMP_DEC"; then
+      echo "    No changes in $ENC_PATH"
+      exit 0
+  else
+      echo "    Changes detected in $ENC_PATH"
+      exit 1
+  fi
+
+# Detects configuration drift against target infrastructure
+[linux]
+[no-cd]
+[group('Verification & Diagnostics')]
+drift profile:
   #!/usr/bin/env bash
 
   set -euo pipefail
@@ -141,7 +280,7 @@ diff server:
   shopt -s globstar
 
   # Examine each configuration file.
-  for FILE in servers/{{ server }}/**/*.bu; do
+  for FILE in servers/{{ profile }}/**/*.bu; do
 
     # Store all paths found in the current configuration file.
     readarray -t CONFIGFILES < <(yq -r '.storage.files[].path' "$FILE")
@@ -157,9 +296,9 @@ diff server:
       APPEND=$(yq eval "(.storage.files[] | select(.path == \"$CONFIGFILE\") | has(\"append\"))" "$FILE")
 
       if [ "$OVERWRITE" == "true" ]; then
-        just -q is-content-overwritten {{ server }} "$FILE" "$CONFIGFILE" || EQUAL="false"
+        just -q is-content-overwritten {{ profile }} "$FILE" "$CONFIGFILE" || EQUAL="false"
       elif [ "$APPEND" == "true" ]; then
-        just -q is-content-appended {{ server }} "$FILE" "$CONFIGFILE" || EQUAL="false"
+        just -q is-content-appended {{ profile }} "$FILE" "$CONFIGFILE" || EQUAL="false"
       else
         just display-error "Unable to process file: $CONFIGFILE"
         EQUAL="false"
@@ -183,11 +322,11 @@ diff server:
 download-iso:
   @podman run --pull always --rm -v .:/data -w /data quay.io/coreos/coreos-installer:release download -f iso
 
-# Encrypt all Butane files using Mozilla SOPS, age from Bitwarden, and comment exclusion rules
+# Selectively encrypts modified Butane files using Mozilla SOPS, age from Bitwarden, and comment exclusion rules
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-encrypt folder:
+encrypt profile:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -208,9 +347,9 @@ encrypt folder:
       trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
   fi
 
-  ITEM_NAME="{{folder}}-age-key"
+  ITEM_NAME="{{profile}}-age-key"
 
-  echo "==> Fetching latest age public key from Bitwarden for '$ITEM_NAME'..."
+  echo "==> Fetching latest age keys from Bitwarden for '$ITEM_NAME'..."
   ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
   if [ -z "$ITEM_JSON" ]; then
       echo "Error: Bitwarden item '$ITEM_NAME' not found." >&2
@@ -223,37 +362,51 @@ encrypt folder:
       exit 1
   fi
 
-  SERVERS_DIR="servers/{{folder}}"
+  PRIV_KEY_CONTENT=$(echo "$ITEM_JSON" | jq -r '.fields[] | select(.name == "PrivateKey") | .value')
+  if [ -n "$PRIV_KEY_CONTENT" ] && [ "$PRIV_KEY_CONTENT" != "null" ]; then
+      export SOPS_AGE_KEY="$PRIV_KEY_CONTENT"
+  fi
+
+  SERVERS_DIR="servers/{{profile}}"
   if [ ! -d "$SERVERS_DIR" ]; then
       echo "Error: Directory '$SERVERS_DIR' does not exist." >&2
       exit 1
   fi
 
-  echo "==> Finding and encrypting all .bu files in $SERVERS_DIR..."
+  echo "==> Finding and evaluating .bu files in $SERVERS_DIR for selective encryption..."
   
-  # Find all .bu files and encrypt them as YAML, preserving comments via regex
+  shopt -s globstar
   while IFS= read -r -d '' input_file; do
       if [[ "$input_file" == *.enc.bu ]]; then
           continue
       fi
 
       output_file="${input_file%.bu}.enc.bu"
+
+      # If the encrypted version exists, check if there are any differences
+      if [ -f "$output_file" ]; then
+          if just -q diff-file "{{profile}}" "$output_file"; then
+              echo "    Skipping (no changes): $input_file"
+              continue
+          fi
+      fi
       
-      echo "    Encrypting: $input_file -> $output_file"
+      echo "    Encrypting (changed/new): $input_file ->$output_file"
       sops --encrypt \
         --input-type yaml \
         --output-type yaml \
         --age "$PUB_KEY_CONTENT" \
         "$input_file" > "$output_file"
   done < <(find "$SERVERS_DIR" -type f -name "*.bu" -print0)
+  shopt -u globstar
 
-  echo "Success! All Butane files encrypted successfully."
+  echo "Success! Modified Butane files encrypted successfully."
 
 # Generates a post-quantum age key pair for encrypting and decrypting configuration files
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-generate-age-key folder:
+generate-age-key profile:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -274,7 +427,7 @@ generate-age-key folder:
       trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
   fi
 
-  ITEM_NAME="{{folder}}-age-key"
+  ITEM_NAME="{{profile}}-age-key"
 
   echo "==> Checking if Bitwarden item '$ITEM_NAME' already exists..."
   if bw list items --search "$ITEM_NAME" 2>/dev/null | jq -e --arg name "$ITEM_NAME" 'any(.[] ; .name == $name)' >/dev/null; then
@@ -295,7 +448,7 @@ generate-age-key folder:
   echo "==> Uploading post-quantum credentials and keys to Bitwarden..."
   PAYLOAD=$(jq -n \
       --arg name "$ITEM_NAME" \
-      --arg username "{{folder}}" \
+      --arg username "{{profile}}" \
       --arg pub "$PUB_KEY" \
       --arg priv "$PRIV_KEY" \
       '{
@@ -351,7 +504,7 @@ lint:
 [linux]
 [no-cd]
 [group('Secrets & Key Management')]
-rotate-age-key folder:
+rotate-age-key profile:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -372,7 +525,7 @@ rotate-age-key folder:
       trap 'if [ "$WAS_LOCKED" = "true" ]; then echo "==> Locking Bitwarden vault..."; bw lock >/dev/null 2>&1 || true; fi' EXIT
   fi
 
-  ITEM_NAME="{{folder}}-age-key"
+  ITEM_NAME="{{profile}}-age-key"
 
   echo "==> Checking if Bitwarden item '$ITEM_NAME' exists for rotation..."
   ITEM_JSON=$(bw get item "$ITEM_NAME" 2>/dev/null || true)
@@ -397,7 +550,7 @@ rotate-age-key folder:
   PAYLOAD=$(jq -n \
       --arg id "$ITEM_ID" \
       --arg name "$ITEM_NAME" \
-      --arg username "{{folder}}" \
+      --arg username "{{profile}}" \
       --arg pub "$PUB_KEY" \
       --arg priv "$PRIV_KEY" \
       '{
