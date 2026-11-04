@@ -7,9 +7,6 @@ build-ignition $FILE FILES_DIR='.':
 
   set -euo pipefail
 
-  # Strip .staging/ prefix if present so output paths map correctly to .generated/
-  CLEAN_FILE="${FILE#.staging/}"
-  
   # Determine if yamllint is installed locally.
   HAS_BUTANE=1
   if which butane &>/dev/null; then
@@ -20,7 +17,7 @@ build-ignition $FILE FILES_DIR='.':
   # Path should match the Butane file unless it is `main.bu`. In that case, the
   # Ignition file should be named after the parent folder name which represents
   # the server.
-  IGNITION_FILE=".generated/${CLEAN_FILE%.*}.ign"
+  IGNITION_FILE="${FILE%.bu}.ign"
   if [ "$(basename $FILE)" == "main.bu" ]; then
     IGNITION_FILE="${IGNITION_FILE%/*}.ign"
   fi

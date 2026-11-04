@@ -1,10 +1,6 @@
-# Ignore all temporary files stored in the .generated and .staging directories.
-.generated/**
-
 # Ignore all large or ephemeral files that are not needed for version control.
 *.iso
 *.iso.sig
-*.tar
 
 # Ignore all files that could conceivably contain secrets.
 *.bu
@@ -14,10 +10,8 @@
 
 # Ignore all server contents by default so new servers aren't tracked automatically
 servers/*
-server/*
 
 # Explicitly allow some configuration files.
-!.pre-commit-config.yaml
 !.yamllint.yaml
 
 # Explicitly allow encrypted butane files to be tracked in Git

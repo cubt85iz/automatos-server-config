@@ -65,7 +65,10 @@ build:
 [no-cd]
 [group('Maintenance & Utility')]
 clean:
-  @rm -rf .generated
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  find servers -type f -name "*.ign" -delete
 
 # Decrypt all Butane files using Mozilla SOPS and the private age key from Bitwarden
 [linux]
@@ -582,7 +585,7 @@ serve:
   set -euo pipefail
 
   # Spin up a Python HTTP server to serve the Ignition files.
-  pushd .generated &> /dev/null
+  pushd servers &> /dev/null
   python3 -m http.server
 
 # Configures WSL2 environment for development.
@@ -650,8 +653,8 @@ validate:
   podman pull -q quay.io/coreos/ignition-validate:release > /dev/null
 
   # Validate the merged Ignition files.
-  if [ -d ".generated/config" ]; then
-    for FILE in .generated/config/*.ign; do
+  if [ -d "servers" ]; then
+    for FILE in servers/*.ign; do
       if [ -s "$FILE" ]; then
         just validate-ignition "$FILE"
       else
