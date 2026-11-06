@@ -12,6 +12,7 @@
 servers/*
 
 # Explicitly allow some configuration files.
+!.sops.yaml
 !.yamllint.yaml
 
 # Explicitly allow encrypted butane files to be tracked in Git
