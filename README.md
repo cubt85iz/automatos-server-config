@@ -107,7 +107,7 @@ The project follows a **Fragment-to-Provision** workflow designed for modularity
 2. **Profile Creation:** Run `just create-profile <profile>` to scaffold the node's directory structure, pre/post-build hooks, and template configuration.
 3. **Key & Secret Setup:** Follow the printed instructions to run `just generate-age-key <profile>` to initialize your post-quantum security layer in Bitwarden and publish its public key to `.sops.yaml`.
 
-4. **Configuration:** Add custom system fragments under `servers/<profile>/system/` and encrypt any sensitive files using `just encrypt <profile>`.
+4. **Configuration:** Add custom system fragments under `servers/<profile>/` and encrypt any sensitive files using `just encrypt <profile>`.
 5. **Deployment:** Run `just run` to clean, build, validate, and host your profiles in one seamless command.
 
 ---
