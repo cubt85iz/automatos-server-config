@@ -1,4 +1,5 @@
 import "shared/output.just"
+import "secrets.just"
 
 # Generates a post-quantum age key pair for encrypting and decrypting configuration files
 [linux]
@@ -260,12 +261,12 @@ rotate-age-key profile:
   fi
 
   # Initialize temp variables for safe cleanup trap scoping
-  TEMP_DIR=""
+  TEMP_PARENT=""
   BACKUP_DIR=""
 
   # Unified EXIT trap to ensure sandbox cleanup AND Bitwarden locking always occur on error/exit
   trap '
-    rm -rf "${TEMP_DIR:-}" "${BACKUP_DIR:-}"
+    rm -rf "${TEMP_PARENT:-}" "${BACKUP_DIR:-}"
     if [ "${WAS_LOCKED}" = "true" ]; then
         echo "==> Locking Bitwarden vault..."
         bw lock >/dev/null 2>&1 || true
@@ -292,7 +293,9 @@ rotate-age-key profile:
 
   # 3. Stage profile in a temporary directory and test-encrypt atomically with correct relative paths
   echo "==> Staging profile in a temporary directory for atomic re-encryption..."
-  TEMP_DIR=$(mktemp -d)
+  TEMP_PARENT=$(mktemp -d)
+  TEMP_DIR="$TEMP_PARENT/$PROFILE_DIR"
+  mkdir -p "$TEMP_DIR"
 
   cp -a "$PROFILE_DIR/." "$TEMP_DIR/"
 
@@ -331,7 +334,7 @@ rotate-age-key profile:
               username: $username
           },
           fields: [
-              {name: "PublicKey", value: $pub, type: 0},
+              {name: "PublicKey", value: $pub, type: 1},
               {name: "PrivateKey", value: $priv, type: 1}
           ]
       }')
@@ -351,9 +354,10 @@ rotate-age-key profile:
   mv "$PROFILE_DIR" "$BACKUP_DIR/old"
   mv "$TEMP_DIR" "$PROFILE_DIR"
   rm -rf "$BACKUP_DIR"
+  rm -rf "$TEMP_PARENT"
 
   # Clear variables so trap does not try to clean up non-existent dirs
-  TEMP_DIR=""
+  TEMP_PARENT=""
   BACKUP_DIR=""
 
   # Reset trap once everything has succeeded and cleaned up cleanly
