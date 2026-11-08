@@ -94,15 +94,8 @@ needs-rekey profile:
       exit 1
   fi
 
-  # Find a test file path for this profile to match against .sops.yaml creation rules
-  TEST_FILE=$(find "$PROFILE_DIR" -type f -name "*.bu" | head -n 1)
-  if [ -z "$TEST_FILE" ]; then
-      echo "==> No Butane files found for profile '$PROFILE'."
-      exit 0
-  fi
-
   # Extract expected age keys by outputting as JSON from yq and normalizing with jq
-  RAW_AGE=$(TEST_FILE="$TEST_FILE" yq eval -o=json '.creation_rules[] | select(strenv(TEST_FILE) | test(.path_regex)) | .age' "$SOPS_YAML")
+  RAW_AGE=$(PROFILE="$PROFILE" yq eval -o=json '.creation_rules[] | select(.path_regex | test("servers/" + env(PROFILE) + "/")) | .age' "$SOPS_YAML")
   
   EXPECTED_KEYS=$(echo "$RAW_AGE" | jq -r '
     if type == "array" then .[] 
