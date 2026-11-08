@@ -14,6 +14,46 @@ clean:
   # Remove all .cache directories in servers/ directories recursively.
   find servers -type d -name ".cache" -exec rm -rf {} +
 
+# Creates a new server profile directory structure, template main.bu, and instructions for age key generation
+[linux]
+[no-cd]
+[group('Maintenance & Utility')]
+create-profile profile:
+  #!/usr/bin/env bash
+  set -euo pipefail
+
+  PROFILE="{{profile}}"
+  PROFILE_DIR="servers/${PROFILE}"
+
+  if [ -d "$PROFILE_DIR" ]; then
+      echo "Error: Profile directory '$PROFILE_DIR' already exists." >&2
+      exit 1
+  fi
+
+  echo "==> Creating profile directory structure for '${PROFILE}'..."
+  mkdir -p "$PROFILE_DIR/.hooks"
+
+  # Populate pre-build hook
+  printf '#!/usr/bin/env bash\n# Purpose: Pre-build hook executed before transpiling butane fragments for this profile.\n# Add any environment preparation or dependency generation steps here.\n' > "$PROFILE_DIR/.hooks/pre-build"
+  chmod +x "$PROFILE_DIR/.hooks/pre-build"
+
+  # Populate post-build hook
+  printf '#!/usr/bin/env bash\n# Purpose: Post-build hook executed after successfully transpiling configuration fragments.\n# Add any validation, linting, or deployment handoff steps here.\n' > "$PROFILE_DIR/.hooks/post-build"
+  chmod +x "$PROFILE_DIR/.hooks/post-build"
+
+  # Create a baseline template main.bu (v1.7.0, no storage block)
+  MAIN_FILE="$PROFILE_DIR/main.bu"
+  echo "==> Generating template main.bu..."
+  printf 'variant: fcos\nversion: 1.7.0\n' > "$MAIN_FILE"
+
+  echo ""
+  echo "Success! Profile '${PROFILE}' initialized at $PROFILE_DIR."
+  echo "    Next steps:"
+  echo "    1. Run 'just generate-age-key ${PROFILE}' to create/save an age encryption key for the profile."
+  echo "    2. Run 'just publish-key ${PROFILE}' to publish the public key in .sops.yaml."
+  echo "    3. Add your custom Butane fragments under servers/${PROFILE}/."
+  echo "    4. Run 'just encrypt ${PROFILE}' to encrypt your configuration files."
+  
 # Download latest stable Fedora CoreOS ISO
 [linux]
 [no-cd]

@@ -27,8 +27,7 @@ The project follows a **Fragment-to-Provision** workflow designed for modularity
 
 ```text
 .
-├── .just/            # Platform-specific task definitions
-│   ├── linux/        # Linux-specific helpers
+├── .just/            # Additional task definitions
 │   └── shared/       # Shared output/task helpers
 ├── servers/          # Node-specific Butane profile fragments (.bu and .enc.bu)
 ├── .sops.yaml        # SOPS encryption rules and age recipient mappings per profile
@@ -98,53 +97,54 @@ The project follows a **Fragment-to-Provision** workflow designed for modularity
 | `just update` | Updates the `.just/shared` submodule to its latest remote version (`git submodule update --remote .just/shared`). |
 | `just download-iso` | Uses Podman to download the latest stable Fedora CoreOS ISO. |
 | `just clean` | Removes all generated Ignition (`.ign`) files across servers. |
+| `just create-profile <profile>` | Initializes a new server profile directory structure, template hooks, and a base `main.bu` (v1.7.0). |
 
 ---
 
 ## ⚙️ Workflow
 
-1. **Provisioning Environment:** Run `just setup` (on WSL2/Ubuntu) to ensure all tools are present.
-2. **Secret & Key Setup:**
+1. **Environment Preparation:** Run `just setup` (on WSL2/Ubuntu) to ensure all tools are present.
+2. **Profile Creation:** Run `just create-profile <profile>` to scaffold the node's directory structure, pre/post-build hooks, and template configuration.
+3. **Key & Secret Setup:** Follow the printed instructions to run `just generate-age-key <profile>` to initialize your post-quantum security layer in Bitwarden and publish its public key to `.sops.yaml`.
 
-* Use `just generate-age-key <profile>` to initialize your post-quantum security layer in Bitwarden.
-* Run `just publish-key <profile>` to register the profile's public key in `.sops.yaml` so SOPS knows how to encrypt/decrypt its fragments.
-
-3. **Profiles:** Create your modular `.bu` fragments in `servers/<profile>/`.
-
-* **Note:** Each server profile **must** include a `main.bu` file to serve as the primary entry point for the build process.
-* Encrypt any sensitive profile files using `just encrypt <profile>`.
-
-4. **Deployment:** Run `just run` to clean, build, validate, and host the files in one seamless command.
+4. **Configuration:** Add custom system fragments under `servers/<profile>/system/` and encrypt any sensitive files using `just encrypt <profile>`.
+5. **Deployment:** Run `just run` to clean, build, validate, and host your profiles in one seamless command.
 
 ---
 
 ## 💡 Example Server Deployment
 
-To deploy a new server named `web-node`, create the directory `servers/web-node/` and add a `main.bu` file:
+To deploy a new server profile named `web-node`, run:
 
-```yaml
-# servers/web-node/main.bu
-variant: fcos
-version: 1.5.0
+```bash
+just create-profile web-node
 
-passwd:
-  users:
-    - name: admin
-      groups: [wheel, sudo]
-      ssh_authorized_keys:
-        - ssh-ed25519 AAAAC3Nza... # Replace with your actual public key
-
-storage:
-  files:
-    - path: /etc/hostname
-      contents:
-        inline: web-node-01
 ```
 
-Once the file is created, simply run:
+This scaffolds the profile structure under `servers/web-node/`:
+
+```text
+servers/web-node/
+├── .hooks/
+│   ├── pre-build
+│   └── post-build
+└── main.bu
+
+```
+
+The generated template `main.bu` uses Fedora CoreOS v1.7.0:
+
+```yaml
+variant: fcos
+version: 1.7.0
+
+```
+
+From there, follow the post-creation instructions to generate your age key, write your custom system configurations, and run:
 
 ```bash
 just run
+
 ```
 
-The system will generate `web-node-01.ign` and serve it at `http://<your-ip>:8000/web-node-01.ign`.
+The system will build `web-node.ign` and serve it at `http://<your-ip>:8000/web-node.ign`.
