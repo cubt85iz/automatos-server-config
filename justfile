@@ -1,8 +1,11 @@
 set ignore-comments := true
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
-import ".just/linux.just"
-import ".just/windows.just"
+import ".just/build.just"
+import ".just/keys.just"
+import ".just/secrets.just"
+import ".just/utilities.just"
+import ".just/verify.just"
 
 # Executes all recipes required to serve ignition files
 [group('Build & Provisioning')]

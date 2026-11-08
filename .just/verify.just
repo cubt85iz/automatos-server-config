@@ -1,36 +1,87 @@
-# Helper for build recipe.
+import "shared/output.just"
+
+# Detects configuration drift against target infrastructure
 [linux]
 [no-cd]
-[private]
-build-ignition $FILE FILES_DIR='.':
+[group('Verification & Diagnostics')]
+drift profile:
   #!/usr/bin/env bash
 
   set -euo pipefail
 
+  # Track overall status
+  EQUAL="true"
+
+  # Enable globstar to find files
+  shopt -s globstar
+
+  # Examine each configuration file.
+  for FILE in servers/{{ profile }}/**/*.bu; do
+
+    # Store all paths found in the current configuration file.
+    readarray -t CONFIGFILES < <(yq -r '.storage.files[].path' "$FILE")
+
+    # Examine each file found in the current configuration file.
+    for CONFIGFILE in ${CONFIGFILES[@]}; do
+
+      # Continue if file is ignored in .diffignore
+      ! just -q is-file-ignored "$CONFIGFILE" || continue
+
+      # Determine what kind of operation to perform. Overwrite the contents of the file or append to it.
+      OVERWRITE=$(yq eval "(.storage.files[] | select(.path == \"$CONFIGFILE\") | has(\"contents\"))" "$FILE")
+      APPEND=$(yq eval "(.storage.files[] | select(.path == \"$CONFIGFILE\") | has(\"append\"))" "$FILE")
+
+      if [ "$OVERWRITE" == "true" ]; then
+        just -q is-content-overwritten {{ profile }} "$FILE" "$CONFIGFILE" || EQUAL="false"
+      elif [ "$APPEND" == "true" ]; then
+        just -q is-content-appended {{ profile }} "$FILE" "$CONFIGFILE" || EQUAL="false"
+      else
+        just display-error "Unable to process file: $CONFIGFILE"
+        EQUAL="false"
+      fi
+    done
+  done
+
+  # Disable globstar
+  shopt -u globstar
+
+  # Exit unsuccessfully if not equal
+  if [ "$EQUAL" != "true" ]; then
+    just display-error "Configuration drift has been detected."
+    exit 1
+  fi
+
+# Lints butane file using yamllint.
+[linux]
+[no-cd]
+[group('Verification & Diagnostics')]
+lint:
+  #!/usr/bin/env bash
+
+  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
+  set -euo pipefail
+
   # Determine if yamllint is installed locally.
-  HAS_BUTANE=1
-  if which butane &>/dev/null; then
-    HAS_BUTANE=0
+  HAS_YAMLLINT=1
+  if which yamllint &>/dev/null; then
+    HAS_YAMLLINT=0
   fi
 
-  # Set up file path for Ignition file.
-  # Path should match the Butane file unless it is `main.bu`. In that case, the
-  # Ignition file should be named after the parent folder name which represents
-  # the server.
-  IGNITION_FILE="${FILE%.bu}.ign"
-  if [ "$(basename $FILE)" == "main.bu" ]; then
-    IGNITION_FILE="${IGNITION_FILE%/*}.ign"
+  # Pull the yamllint docker image if yamllint is not installed.
+  if [ $HAS_YAMLLINT -ne 0 ]; then
+    podman pull -q docker.io/pipelinecomponents/yamllint:latest > /dev/null
   fi
-  mkdir -p "$(dirname $IGNITION_FILE)"
 
-  # Generate Ignition file.
-  echo "Generating ignition file: $IGNITION_FILE"
-  if [ $HAS_BUTANE -eq 0 ]; then
-    butane --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+  shopt -s globstar
+  readarray -t BUTANE_FILES < <(ls -1 servers/**/*.bu 2>/dev/null | grep -v '\.enc\.bu$' | sort)
+
+  if [ $HAS_YAMLLINT -ne 0 ]; then
+    podman run --rm -v .:/code:z,ro docker.io/pipelinecomponents/yamllint:latest yamllint "${BUTANE_FILES[@]}"
   else
-    podman run --rm -i -v .:/files:z,rw,rslave,rbind --workdir /files quay.io/coreos/butane:release \
-      --pretty --files-dir "{{ FILES_DIR }}" < "${FILE}" > "$IGNITION_FILE"
+    yamllint "${BUTANE_FILES[@]}"
   fi
+
+  echo "All butane files passed linting checks."
 
 [linux]
 [no-cd]
@@ -147,54 +198,3 @@ is-file-ignored $FILE:
   done < ".diffignore"
 
   exit 1
-
-[linux]
-[no-cd]
-[private]
-is-ubuntu:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  if [ -s "/etc/os-release" ]; then
-    . /etc/os-release
-  fi
-
-  if [[ "$ID" == "ubuntu" || "$NAME" =~ [Uu]buntu ]]; then
-    exit 0
-  fi
-
-  exit 1
-
-[linux]
-[no-cd]
-[private]
-is-wsl-environment:
-  #!/usr/bin/env bash
-
-  set -euo pipefail
-
-  if grep -qi "microsoft" /proc/version 2>/dev/null || \
-    grep -qi "microsoft" /proc/sys/kernel/osrelease 2>/dev/null; then
-    exit 0
-  fi
-
-  if [ -n "$WSL_DISTRO_NAME" ]; then
-    exit 0
-  fi
-
-  exit 1
-
-# Helper for validate recipe.
-[linux]
-[no-cd]
-[private]
-validate-ignition $FILE:
-  #!/usr/bin/env bash
-
-  # Set up Bash script to exit on error, enforcing strict mode with `pipefail` option
-  set -euo pipefail
-
-  # Validate Ignition file.
-  echo "Validating ignition file: $FILE"
-  podman run --rm -i quay.io/coreos/ignition-validate:release - < "$FILE"

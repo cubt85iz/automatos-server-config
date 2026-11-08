@@ -19,3 +19,6 @@ servers/*
 !servers/**/
 !servers/**/*.enc.bu
 
+# Explicitly ignore ephemeral build caches for server profiles.
+servers/**/.cache/
+servers/**/.cache/*

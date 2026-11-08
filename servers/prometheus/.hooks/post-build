@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Resolve paths relative to this script
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROFILE_DIR="$(dirname "$HOOK_DIR")"
+CACHE_DIR="$PROFILE_DIR/.cache"
+
+echo "==> Cleaning up build cache for $(basename "$PROFILE_DIR")..."
+
+if [ -d "$CACHE_DIR" ]; then
+    rm -rf "$CACHE_DIR"
+    echo "-> Removed temporary .cache directory."
+else
+    echo "-> No .cache directory found to clean."
+fi
+
+echo "==> Post-build cleanup complete!"
